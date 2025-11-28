@@ -101,10 +101,6 @@ Set via environment variables in `.env`:
 - `STORAGE_PATH`: Sample storage path (default: `/data/samples`)
 - `API_KEY`: API authentication key (required)
 
-## Security Warning
-
-⚠️ **This application handles malware samples**. Use in isolated environments only with proper security controls.
-
 ## License
 
 MIT License
