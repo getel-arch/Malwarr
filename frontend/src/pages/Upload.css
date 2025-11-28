@@ -1,0 +1,277 @@
+.upload-page {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.upload-container {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.upload-mode-toggle {
+  display: flex;
+  gap: 10px;
+  background: #252525;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.mode-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: #888;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mode-btn:hover {
+  color: #e0e0e0;
+  background: #2a2a2a;
+}
+
+.mode-btn.active {
+  background: #f4511e;
+  color: #fff;
+  border-color: #f4511e;
+}
+
+.dropzone {
+  background: #252525;
+  border: 3px dashed #444;
+  border-radius: 12px;
+  padding: 60px 40px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.dropzone:hover,
+.dropzone.dragging {
+  border-color: #f4511e;
+  background: #2a2a2a;
+}
+
+.dropzone.has-file {
+  border-style: solid;
+  border-color: #00c853;
+}
+
+.drop-message {
+  color: #888;
+}
+
+.upload-icon {
+  font-size: 64px;
+  color: #f4511e;
+  margin-bottom: 20px;
+}
+
+.drop-message h3 {
+  margin: 0 0 10px 0;
+  color: #e0e0e0;
+  font-size: 24px;
+}
+
+.drop-message p {
+  margin: 0;
+  color: #666;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.file-icon {
+  font-size: 48px;
+  color: #f4511e;
+}
+
+.file-details {
+  text-align: left;
+}
+
+.file-name {
+  color: #e0e0e0;
+  font-size: 18px;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.file-size {
+  color: #888;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.url-input-section {
+  background: #252525;
+  border: 2px solid #444;
+  border-radius: 12px;
+  padding: 40px;
+}
+
+.url-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 12px 16px;
+  transition: border-color 0.2s;
+}
+
+.url-input-wrapper:focus-within {
+  border-color: #f4511e;
+}
+
+.url-icon {
+  color: #f4511e;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.url-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #e0e0e0;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+}
+
+.url-input::placeholder {
+  color: #555;
+}
+
+.url-preview {
+  margin-top: 15px;
+  padding: 12px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 6px;
+}
+
+.url-preview p {
+  margin: 0;
+  color: #888;
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.metadata-form {
+  background: #252525;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 30px;
+}
+
+.metadata-form h3 {
+  margin: 0 0 20px 0;
+  color: #f4511e;
+  font-size: 18px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #888;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  color: #e0e0e0;
+  padding: 12px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #f4511e;
+}
+
+.form-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 30px;
+}
+
+.btn {
+  flex: 1;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: #f4511e;
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #ff6f00;
+}
+
+.btn-secondary {
+  background: #444;
+  color: #fff;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #555;
+}
+
+@media (max-width: 768px) {
+  .dropzone {
+    padding: 40px 20px;
+  }
+
+  .upload-icon {
+    font-size: 48px;
+  }
+
+  .metadata-form {
+    padding: 20px;
+  }
+
+  .form-actions {
+    flex-direction: column;
+  }
+}

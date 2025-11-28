@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAPA Explorer - Malwarr Integration</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            z-index: 9999;
+            transition: opacity 0.3s ease-out;
+        }
+        #loading.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 40px;
+            max-width: 500px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .spinner {
+            border: 4px solid rgba(76, 175, 80, 0.2);
+            border-left-color: #4CAF50;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        h2 {
+            margin: 0 0 10px 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        #status {
+            color: #aaa;
+            margin: 10px 0 20px 0;
+            font-size: 14px;
+        }
+        .download-btn {
+            display: inline-block;
+            padding: 14px 32px;
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+        }
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+        }
+        .download-btn:active {
+            transform: translateY(0);
+        }
+        #helpText {
+            color: #ccc;
+            margin-top: 20px;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+        #helpText strong {
+            color: #4CAF50;
+        }
+        .step {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            background: #4CAF50;
+            border-radius: 50%;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        #capa-frame {
+            width: 100%;
+            height: 100vh;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div class="card">
+            <div class="spinner" id="spinner"></div>
+            <h2>CAPA Explorer Integration</h2>
+            <p id="status">Loading...</p>
+            <button class="download-btn" id="downloadBtn" onclick="downloadAndShowInstructions()" style="display:none;">
+                📥 Download Analysis File
+            </button>
+            <div id="helpText" style="display:none;">
+                <p><span class="step">1</span> <strong>Click the button above</strong> to download the analysis JSON</p>
+                <p><span class="step">2</span> <strong>Drag the file</strong> into the CAPA Explorer interface below</p>
+                <p><span class="step">3</span> The analysis results will be displayed</p>
+            </div>
+        </div>
+    </div>
+    
+    <iframe id="capa-frame" src="{{explorer_url}}#/analysis?rdoc={{capa_json_url}}"></iframe>
+
+    <script>
+        // Sample hash for API endpoint
+        const sampleSha512 = "{{sample_sha512}}";
+        
+        const statusEl = document.getElementById('status');
+        const loadingEl = document.getElementById('loading');
+        const iframe = document.getElementById('capa-frame');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const helpText = document.getElementById('helpText');
+        const spinner = document.getElementById('spinner');
+        
+        // Monitor iframe loading
+        iframe.addEventListener('load', function() {
+            console.log('[Malwarr] CAPA Explorer loaded with rdoc parameter');
+            statusEl.textContent = 'CAPA Explorer loaded - fetching analysis data...';
+            
+            // Give CAPA Explorer time to fetch and render the data
+            setTimeout(() => {
+                statusEl.textContent = 'Analysis data loaded successfully!';
+                setTimeout(() => {
+                    loadingEl.classList.add('hidden');
+                }, 1000);
+            }, 2000);
+        });
+        
+        // Handle errors
+        iframe.addEventListener('error', function() {
+            statusEl.textContent = 'Error loading CAPA Explorer';
+            statusEl.style.color = '#f44336';
+            downloadBtn.style.display = 'inline-block';
+            helpText.style.display = 'block';
+        });
+        
+        // Fallback download function if needed
+        window.downloadJson = function() {
+            const downloadUrl = `/api/v1/samples/${sampleSha512}/capa/download`;
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = `capa-analysis-${sampleSha512.substring(0, 8)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            statusEl.textContent = 'JSON downloaded! Drag it into CAPA Explorer if needed.';
+        };
+        
+        console.log('[Malwarr] CAPA Explorer wrapper initialized with rdoc parameter');
+        console.log('[Malwarr] Sample SHA512:', sampleSha512);
+        console.log('[Malwarr] Explorer URL:', '{{explorer_url}}#/analysis?rdoc={{capa_json_url}}');
+    </script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+.header {
+  background: #252525;
+  border-bottom: 1px solid #333;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-content {
+  padding: 20px 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #e0e0e0;
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
