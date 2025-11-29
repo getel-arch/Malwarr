@@ -237,11 +237,9 @@ class IngestionService:
         extracted_samples = []
         for extracted_file in extracted_files:
             try:
-                # Create a note indicating this came from an archive
-                archive_note = f"Extracted from archive: {archive_filename} (SHA512: {archive_sha512[:16]}...)"
-                
                 # Recursively ingest the extracted file
                 # Note: This will handle nested archives automatically
+                # Parent archive relationship is shown in the relations tab
                 extracted_sample, nested_samples = self.ingest_file(
                     file_content=extracted_file['content'],
                     filename=extracted_file['filename'],
@@ -249,7 +247,7 @@ class IngestionService:
                     tags=tags,
                     family=family,
                     classification=classification,
-                    notes=archive_note,
+                    notes=None,  # No notes needed - parent shown in relations tab
                     archive_password=password,  # Try same password for nested archives
                     parent_archive_sha512=archive_sha512
                 )

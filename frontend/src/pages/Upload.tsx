@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaUpload, FaFile, FaLink, FaLock, FaArchive, FaCheckCircle, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { FaUpload, FaFile, FaLink, FaLock, FaArchive, FaEye, FaEyeSlash } from 'react-icons/fa';
 import { malwarrApi } from '../services/api';
 import './Upload.css';
 
@@ -14,7 +14,6 @@ const Upload: React.FC = () => {
   const [isArchive, setIsArchive] = useState(false);
   const [showPasswordInput, setShowPasswordInput] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [uploadResult, setUploadResult] = useState<any>(null);
   const [metadata, setMetadata] = useState({
     family: '',
     classification: '',
@@ -74,7 +73,6 @@ const Upload: React.FC = () => {
 
     try {
       setUploading(true);
-      setUploadResult(null);
       let result: any = null;
       
       if (uploadMode === 'file' && file) {
@@ -96,14 +94,8 @@ const Upload: React.FC = () => {
       }
       
       if (result) {
-        setUploadResult(result);
-        
-        // If it's not an archive or extraction failed, navigate immediately
-        if (!result.is_archive || result.extraction_count === 0) {
-          setTimeout(() => {
-            navigate(`/samples/${result.sample.sha512}`);
-          }, 1500);
-        }
+        // Always redirect to sample page immediately after upload
+        navigate(`/samples/${result.sample.sha512}`);
       }
     } catch (error: any) {
       const errorMessage = error.response?.data?.detail || error.message || 'Upload failed';
@@ -284,7 +276,6 @@ const Upload: React.FC = () => {
                 onClick={() => {
                   setFile(null);
                   setUrl('');
-                  setUploadResult(null);
                   setMetadata({ family: '', classification: '', tags: '', notes: '', archive_password: 'infected' });
                 }}
                 disabled={uploading}
@@ -292,58 +283,6 @@ const Upload: React.FC = () => {
                 Clear
               </button>
             </div>
-          </div>
-        )}
-
-        {/* Upload result display */}
-        {uploadResult && (
-          <div className="upload-result">
-            <div className="result-header">
-              <FaCheckCircle className="success-icon" />
-              <h3>Upload Successful!</h3>
-            </div>
-            
-            <div className="result-sample">
-              <h4>Uploaded Sample</h4>
-              <div className="sample-info">
-                <p><strong>Filename:</strong> {uploadResult.sample.filename}</p>
-                <p><strong>SHA256:</strong> <code>{uploadResult.sample.sha256}</code></p>
-                <p><strong>File Type:</strong> {uploadResult.sample.file_type}</p>
-                {uploadResult.sample.file_size && (
-                  <p><strong>Size:</strong> {formatSize(uploadResult.sample.file_size)}</p>
-                )}
-              </div>
-              <button 
-                className="btn btn-primary"
-                onClick={() => navigate(`/samples/${uploadResult.sample.sha512}`)}
-              >
-                View Details
-              </button>
-            </div>
-
-            {uploadResult.is_archive && uploadResult.extraction_count > 0 && (
-              <div className="result-extracted">
-                <h4>
-                  <FaArchive /> Extracted {uploadResult.extraction_count} {uploadResult.extraction_count === 1 ? 'File' : 'Files'}
-                </h4>
-                <div className="extracted-files-list">
-                  {uploadResult.extracted_samples.map((sample: any, index: number) => (
-                    <div key={sample.sha512} className="extracted-file-item">
-                      <div className="extracted-file-info">
-                        <strong>{sample.filename}</strong>
-                        <span className="file-type-badge">{sample.file_type}</span>
-                      </div>
-                      <button
-                        className="btn btn-sm"
-                        onClick={() => navigate(`/samples/${sample.sha512}`)}
-                      >
-                        View
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         )}
       </div>
