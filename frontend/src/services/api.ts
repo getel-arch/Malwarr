@@ -1,6 +1,24 @@
 import axios, { InternalAxiosRequestConfig } from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8686';
+// Determine API base URL
+// Priority: 1) Environment variable, 2) Same origin (for production), 3) localhost fallback
+const getApiBaseUrl = (): string => {
+  // Use environment variable if set
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL;
+  }
+  
+  // In production (served from backend), use empty string for relative URLs
+  // This allows the frontend to work with any domain/port
+  if (process.env.NODE_ENV === 'production') {
+    return '';
+  }
+  
+  // Development fallback
+  return 'http://localhost:8686';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,

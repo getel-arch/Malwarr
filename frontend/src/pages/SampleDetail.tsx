@@ -13,7 +13,7 @@ const SampleDetail: React.FC = () => {
   const [editData, setEditData] = useState<any>({});
   const [capaAnalyzing, setCapaAnalyzing] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'analyzers' | 'relations'>('overview');
-  const [activeAnalyzerTab, setActiveAnalyzerTab] = useState<'capa' | 'pe'>('capa');
+  const [activeAnalyzerTab, setActiveAnalyzerTab] = useState<'capa' | 'pe' | 'elf'>('capa');
   const [relatedSamples, setRelatedSamples] = useState<{
     parentArchive?: MalwareSample;
     extractedFiles?: MalwareSample[];
@@ -443,6 +443,14 @@ const SampleDetail: React.FC = () => {
                 PE
               </button>
             )}
+            {sample.file_type === 'elf' && (
+              <button 
+                className={`sub-tab ${activeAnalyzerTab === 'elf' ? 'active' : ''}`}
+                onClick={() => setActiveAnalyzerTab('elf')}
+              >
+                ELF
+              </button>
+            )}
           </div>
 
           {/* CAPA Sub-tab Content */}
@@ -631,6 +639,82 @@ const SampleDetail: React.FC = () => {
               {!sample.pe_sections && !sample.pe_imports && !sample.pe_exports && (
                 <div className="detail-section full-width">
                   <p>No PE analysis data available for this sample.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ELF Analyzer Sub-tab Content */}
+          {activeAnalyzerTab === 'elf' && sample.file_type === 'elf' && (
+            <div className="analyzer-content">
+              <div className="detail-section full-width">
+                <h3>ELF Header Information</h3>
+                <div className="info-grid">
+                  {sample.elf_machine && (
+                    <div className="info-row">
+                      <span className="label">Machine Type:</span>
+                      <code>{sample.elf_machine}</code>
+                    </div>
+                  )}
+                  {sample.elf_entry_point && (
+                    <div className="info-row">
+                      <span className="label">Entry Point:</span>
+                      <code>{sample.elf_entry_point}</code>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Sections */}
+              {sample.elf_sections && (() => {
+                try {
+                  const sections = JSON.parse(sample.elf_sections);
+                  return (
+                    <div className="detail-section full-width">
+                      <h3>ELF Sections ({sections.length})</h3>
+                      <div className="table-container">
+                        <table className="pe-sections-table">
+                          <thead>
+                            <tr>
+                              <th>Name</th>
+                              <th>Address</th>
+                              <th>Offset</th>
+                              <th>Size</th>
+                              <th>Type</th>
+                              <th>Flags</th>
+                              <th>Entropy</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {sections.map((section: any, index: number) => (
+                              <tr key={index}>
+                                <td><code>{section.name}</code></td>
+                                <td><code>{section.address}</code></td>
+                                <td><code>{section.offset}</code></td>
+                                <td>{section.size.toLocaleString()}</td>
+                                <td>{section.type}</td>
+                                <td><code>{section.flags}</code></td>
+                                <td>
+                                  <span className={`entropy-badge ${section.entropy > 7 ? 'high' : section.entropy > 6 ? 'medium' : 'low'}`}>
+                                    {section.entropy.toFixed(2)}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                } catch (e) {
+                  return null;
+                }
+              })()}
+
+              {/* Show message if no ELF data available */}
+              {!sample.elf_sections && (
+                <div className="detail-section full-width">
+                  <p>No ELF analysis data available for this sample.</p>
                 </div>
               )}
             </div>
