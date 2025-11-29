@@ -36,6 +36,10 @@ export interface MalwareSample {
   file_size: number;
   file_type: string;
   mime_type?: string;
+  // Archive fields
+  is_archive?: string;
+  parent_archive_sha512?: string;
+  extracted_file_count?: number;
   pe_imphash?: string;
   pe_compilation_timestamp?: string;
   pe_entry_point?: string;
@@ -66,6 +70,13 @@ export interface MalwareSample {
   last_updated: string;
   upload_date: string;
   storage_path: string;
+}
+
+export interface UploadResponse {
+  sample: MalwareSample;
+  extracted_samples: MalwareSample[];
+  is_archive: boolean;
+  extraction_count: number;
 }
 
 export interface SystemInfo {
@@ -118,13 +129,15 @@ export const malwarrApi = {
     family?: string;
     classification?: string;
     notes?: string;
-  }): Promise<MalwareSample> => {
+    archive_password?: string;
+  }): Promise<UploadResponse> => {
     const formData = new FormData();
     formData.append('file', file);
     if (metadata?.tags) formData.append('tags', metadata.tags);
     if (metadata?.family) formData.append('family', metadata.family);
     if (metadata?.classification) formData.append('classification', metadata.classification);
     if (metadata?.notes) formData.append('notes', metadata.notes);
+    if (metadata?.archive_password) formData.append('archive_password', metadata.archive_password);
 
     const response = await api.post('/api/v1/samples', formData, {
       headers: {
@@ -141,7 +154,8 @@ export const malwarrApi = {
     family?: string;
     classification?: string;
     notes?: string;
-  }): Promise<MalwareSample> => {
+    archive_password?: string;
+  }): Promise<UploadResponse> => {
     const response = await api.post('/api/v1/samples/from-url', data);
     return response.data;
   },

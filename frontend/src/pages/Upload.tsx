@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaUpload, FaFile, FaLink } from 'react-icons/fa';
+import { FaUpload, FaFile, FaLink, FaLock, FaArchive, FaCheckCircle, FaEye, FaEyeSlash } from 'react-icons/fa';
 import { malwarrApi } from '../services/api';
 import './Upload.css';
 
@@ -11,12 +11,31 @@ const Upload: React.FC = () => {
   const [url, setUrl] = useState('');
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [isArchive, setIsArchive] = useState(false);
+  const [showPasswordInput, setShowPasswordInput] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [uploadResult, setUploadResult] = useState<any>(null);
   const [metadata, setMetadata] = useState({
     family: '',
     classification: '',
     tags: '',
     notes: '',
+    archive_password: 'infected', // Default password
   });
+
+  // Detect if file is an archive based on extension
+  useEffect(() => {
+    if (file) {
+      const filename = file.name.toLowerCase();
+      const archiveExtensions = ['.zip', '.rar', '.7z', '.tar', '.tar.gz', '.tgz', '.tar.bz2', '.tbz2', '.tar.xz', '.txz', '.gz'];
+      const isArchiveFile = archiveExtensions.some(ext => filename.endsWith(ext));
+      setIsArchive(isArchiveFile);
+      setShowPasswordInput(isArchiveFile);
+    } else {
+      setIsArchive(false);
+      setShowPasswordInput(false);
+    }
+  }, [file]);
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -47,24 +66,36 @@ const Upload: React.FC = () => {
 
     try {
       setUploading(true);
-      let sample;
+      setUploadResult(null);
+      let result: any = null;
       
       if (uploadMode === 'file' && file) {
-        sample = await malwarrApi.uploadSample(file, metadata);
+        result = await malwarrApi.uploadSample(file, {
+          ...metadata,
+          archive_password: metadata.archive_password || undefined
+        });
       } else if (uploadMode === 'url') {
         // Parse tags for URL upload
-        const tagList = metadata.tags ? metadata.tags.split(',').map(t => t.trim()).filter(t => t) : [];
-        sample = await malwarrApi.uploadSampleFromUrl({
+        const tagList = metadata.tags ? metadata.tags.split(',').map((t: string) => t.trim()).filter((t: string) => t) : [];
+        result = await malwarrApi.uploadSampleFromUrl({
           url: url.trim(),
           tags: tagList,
           family: metadata.family || undefined,
           classification: metadata.classification || undefined,
           notes: metadata.notes || undefined,
+          archive_password: metadata.archive_password || undefined,
         });
       }
       
-      if (sample) {
-        navigate(`/samples/${sample.sha512}`);
+      if (result) {
+        setUploadResult(result);
+        
+        // If it's not an archive or extraction failed, navigate immediately
+        if (!result.is_archive || result.extraction_count === 0) {
+          setTimeout(() => {
+            navigate(`/samples/${result.sample.sha512}`);
+          }, 1500);
+        }
       }
     } catch (error: any) {
       const errorMessage = error.response?.data?.detail || error.message || 'Upload failed';
@@ -161,6 +192,37 @@ const Upload: React.FC = () => {
           <div className="metadata-form">
             <h3>Sample Metadata (Optional)</h3>
             
+            {/* Archive password input */}
+            {isArchive && showPasswordInput && (
+              <div className="form-group archive-password-section">
+                <label>
+                  <FaLock /> Archive Password
+                  <span className="optional-label"> (if encrypted)</span>
+                </label>
+                <div className="password-input-wrapper">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Enter password for encrypted archive"
+                    value={metadata.archive_password}
+                    onChange={(e) => setMetadata({ ...metadata, archive_password: e.target.value })}
+                    className="password-input"
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle-btn"
+                    onClick={() => setShowPassword(!showPassword)}
+                    title={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <FaEyeSlash /> : <FaEye />}
+                  </button>
+                </div>
+                <small className="help-text">
+                  <FaArchive /> Archive detected! Default password is "infected". 
+                  Each file will be extracted and scanned separately.
+                </small>
+              </div>
+            )}
+            
             <div className="form-group">
               <label>Malware Family</label>
               <input
@@ -213,13 +275,67 @@ const Upload: React.FC = () => {
                 className="btn btn-secondary"
                 onClick={() => {
                   setFile(null);
-                  setMetadata({ family: '', classification: '', tags: '', notes: '' });
+                  setUrl('');
+                  setUploadResult(null);
+                  setMetadata({ family: '', classification: '', tags: '', notes: '', archive_password: 'infected' });
                 }}
                 disabled={uploading}
               >
                 Clear
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Upload result display */}
+        {uploadResult && (
+          <div className="upload-result">
+            <div className="result-header">
+              <FaCheckCircle className="success-icon" />
+              <h3>Upload Successful!</h3>
+            </div>
+            
+            <div className="result-sample">
+              <h4>Uploaded Sample</h4>
+              <div className="sample-info">
+                <p><strong>Filename:</strong> {uploadResult.sample.filename}</p>
+                <p><strong>SHA256:</strong> <code>{uploadResult.sample.sha256}</code></p>
+                <p><strong>File Type:</strong> {uploadResult.sample.file_type}</p>
+                {uploadResult.sample.file_size && (
+                  <p><strong>Size:</strong> {(uploadResult.sample.file_size / 1024).toFixed(2)} KB</p>
+                )}
+              </div>
+              <button 
+                className="btn btn-primary"
+                onClick={() => navigate(`/samples/${uploadResult.sample.sha512}`)}
+              >
+                View Details
+              </button>
+            </div>
+
+            {uploadResult.is_archive && uploadResult.extraction_count > 0 && (
+              <div className="result-extracted">
+                <h4>
+                  <FaArchive /> Extracted {uploadResult.extraction_count} {uploadResult.extraction_count === 1 ? 'File' : 'Files'}
+                </h4>
+                <div className="extracted-files-list">
+                  {uploadResult.extracted_samples.map((sample: any, index: number) => (
+                    <div key={sample.sha512} className="extracted-file-item">
+                      <div className="extracted-file-info">
+                        <strong>{sample.filename}</strong>
+                        <span className="file-type-badge">{sample.file_type}</span>
+                      </div>
+                      <button
+                        className="btn btn-sm"
+                        onClick={() => navigate(`/samples/${sample.sha512}`)}
+                      >
+                        View
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -12,4 +12,7 @@ pyelftools==0.31
 flare-capa==9.3.1
 celery==5.4.0
 redis==5.2.0
-httpx==0.27.0
+httpx==0.27.2
+py7zr==0.22.0
+rarfile==4.2
+pyzipper==0.3.6

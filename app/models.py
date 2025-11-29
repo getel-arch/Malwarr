@@ -92,5 +92,10 @@ class MalwareSample(Base):
     last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     upload_date = Column(DateTime, default=datetime.utcnow, nullable=False)
     
+    # Archive relationships
+    is_archive = Column(String(10), default="false")  # "true" or "false"
+    parent_archive_sha512 = Column(String(128), index=True)  # SHA512 of parent archive if extracted from one
+    extracted_file_count = Column(Integer, default=0)  # Number of files extracted from this archive
+    
     # Storage location (relative path from storage root)
     storage_path = Column(String(255), nullable=False)

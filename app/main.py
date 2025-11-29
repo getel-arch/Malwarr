@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Query, Header, Request
+from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Query, Header, Request, Form
 from fastapi.responses import StreamingResponse, JSONResponse, FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,7 +17,8 @@ from app.schemas import (
     MalwareSampleCreate,
     MalwareSampleUpdate,
     MalwareSampleURL,
-    SystemInfo
+    SystemInfo,
+    UploadResponse
 )
 from app.ingestion import IngestionService
 from app.storage import FileStorage
@@ -82,13 +83,14 @@ async def get_system_info(db: Session = Depends(get_db)):
     )
 
 
-@app.post("/api/v1/samples", response_model=MalwareSampleResponse)
+@app.post("/api/v1/samples", response_model=UploadResponse)
 async def upload_sample(
     file: UploadFile = File(...),
-    tags: Optional[str] = None,
-    family: Optional[str] = None,
-    classification: Optional[str] = None,
-    notes: Optional[str] = None,
+    tags: Optional[str] = Form(None),
+    family: Optional[str] = Form(None),
+    classification: Optional[str] = Form(None),
+    notes: Optional[str] = Form(None),
+    archive_password: Optional[str] = Form(None),
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
 ):
@@ -100,6 +102,7 @@ async def upload_sample(
     - **family**: Malware family name (optional)
     - **classification**: Classification type (optional)
     - **notes**: Additional notes (optional)
+    - **archive_password**: Password for encrypted archives (optional)
     """
     # Read file content
     content = await file.read()
@@ -107,22 +110,31 @@ async def upload_sample(
     # Parse tags
     tag_list = [t.strip() for t in tags.split(',')] if tags else []
     
+    # Debug logging for archive password
+    logger.info(f"Upload: filename={file.filename}, archive_password={archive_password!r}")
+    
     # Ingest file
     ingestion_service = IngestionService(file_storage)
-    sample = ingestion_service.ingest_file(
+    sample, extracted_samples = ingestion_service.ingest_file(
         file_content=content,
         filename=file.filename,
         db=db,
         tags=tag_list,
         family=family,
         classification=classification,
-        notes=notes
+        notes=notes,
+        archive_password=archive_password
     )
     
-    return sample
+    return UploadResponse(
+        sample=sample,
+        extracted_samples=extracted_samples,
+        is_archive=(sample.is_archive == "true"),
+        extraction_count=len(extracted_samples)
+    )
 
 
-@app.post("/api/v1/samples/from-url", response_model=MalwareSampleResponse)
+@app.post("/api/v1/samples/from-url", response_model=UploadResponse)
 async def upload_sample_from_url(
     sample_data: MalwareSampleURL,
     db: Session = Depends(get_db),
@@ -137,6 +149,7 @@ async def upload_sample_from_url(
     - **family**: Malware family name (optional)
     - **classification**: Classification type (optional)
     - **notes**: Additional notes (optional)
+    - **archive_password**: Password for encrypted archives (optional)
     """
     import httpx
     from urllib.parse import urlparse, unquote
@@ -165,17 +178,23 @@ async def upload_sample_from_url(
         
         # Ingest file
         ingestion_service = IngestionService(file_storage)
-        sample = ingestion_service.ingest_file(
+        sample, extracted_samples = ingestion_service.ingest_file(
             file_content=content,
             filename=filename,
             db=db,
             tags=sample_data.tags or [],
             family=sample_data.family,
             classification=sample_data.classification,
-            notes=sample_data.notes
+            notes=sample_data.notes,
+            archive_password=sample_data.archive_password
         )
         
-        return sample
+        return UploadResponse(
+            sample=sample,
+            extracted_samples=extracted_samples,
+            is_archive=(sample.is_archive == "true"),
+            extraction_count=len(extracted_samples)
+        )
         
     except httpx.HTTPError as e:
         raise HTTPException(status_code=400, detail=f"Failed to download from URL: {str(e)}")

@@ -1,6 +1,6 @@
 import tempfile
 import json
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List, Tuple
 from pathlib import Path
 from datetime import datetime
 from app.models import MalwareSample, FileType, AnalysisStatus
@@ -15,6 +15,7 @@ from app.utils import (
 from app.pe_analyzer import extract_pe_metadata
 from app.elf_analyzer import extract_elf_metadata
 from app.storage import FileStorage
+from app.archive_utils import is_archive, extract_archive
 from sqlalchemy.orm import Session
 import logging
 
@@ -31,7 +32,9 @@ class IngestionService:
     
     def ingest_file(self, file_content: bytes, filename: str, db: Session, 
                     tags: list = None, family: str = None, 
-                    classification: str = None, notes: str = None) -> MalwareSample:
+                    classification: str = None, notes: str = None,
+                    archive_password: Optional[str] = None,
+                    parent_archive_sha512: Optional[str] = None) -> Tuple[MalwareSample, List[MalwareSample]]:
         """
         Ingest a malware file and extract metadata
         
@@ -43,9 +46,13 @@ class IngestionService:
             family: Optional malware family
             classification: Optional classification
             notes: Optional notes
+            archive_password: Optional password for encrypted archives
+            parent_archive_sha512: SHA512 of parent archive if this file was extracted
             
         Returns:
-            MalwareSample object
+            Tuple of (main_sample, extracted_samples)
+            main_sample: MalwareSample object for the uploaded file
+            extracted_samples: List of MalwareSample objects for files extracted from archive (empty if not an archive)
         """
         # Calculate hashes
         hashes = calculate_hashes(file_content)
@@ -65,11 +72,21 @@ class IngestionService:
                 existing.notes = notes
             db.commit()
             db.refresh(existing)
-            return existing
+            # If archive, still process extracted files
+            if existing.is_archive == "true":
+                extracted_samples = self._process_archive(
+                    file_content, filename, sha512, db, 
+                    archive_password, tags, family, classification
+                )
+                return existing, extracted_samples
+            return existing, []
         
         # Get MIME type and description
         mime_type, magic_description = get_file_type_from_magic(file_content)
         file_type = determine_file_type(mime_type, magic_description)
+        
+        # Check if this is an archive
+        is_archive_file = is_archive(mime_type, magic_description, filename)
         
         # Calculate entropy
         entropy = calculate_entropy(file_content)
@@ -94,7 +111,10 @@ class IngestionService:
             family=family,
             classification=classification,
             notes=notes,
-            storage_path=get_storage_path(sha512)
+            storage_path=get_storage_path(sha512),
+            is_archive="true" if is_archive_file else "false",
+            parent_archive_sha512=parent_archive_sha512,
+            extracted_file_count=0  # Will be updated if extraction occurs
         )
         
         # Extract type-specific metadata
@@ -141,6 +161,14 @@ class IngestionService:
         db.commit()
         db.refresh(sample)
         
+        # Process archive if applicable
+        extracted_samples = []
+        if is_archive_file:
+            extracted_samples = self._process_archive(
+                file_content, filename, sha512, db, 
+                archive_password, tags, family, classification
+            )
+        
         # Queue async CAPA analysis if needed
         if sample.analysis_status == AnalysisStatus.PENDING:
             try:
@@ -154,7 +182,87 @@ class IngestionService:
                 sample.analysis_status = AnalysisStatus.FAILED
                 db.commit()
         
-        return sample
+        return sample, extracted_samples
+    
+    def _process_archive(
+        self,
+        archive_content: bytes,
+        archive_filename: str,
+        archive_sha512: str,
+        db: Session,
+        password: Optional[str] = None,
+        tags: list = None,
+        family: str = None,
+        classification: str = None
+    ) -> List[MalwareSample]:
+        """
+        Extract and process files from an archive
+        
+        Args:
+            archive_content: Raw archive bytes
+            archive_filename: Original archive filename
+            archive_sha512: SHA512 hash of the archive
+            db: Database session
+            password: Optional password for encrypted archives
+            tags: Optional tags to apply to extracted files
+            family: Optional family to apply to extracted files
+            classification: Optional classification to apply to extracted files
+            
+        Returns:
+            List of MalwareSample objects for extracted files
+        """
+        logger.info(f"Processing archive: {archive_filename}")
+        
+        # Extract files from archive
+        success, extracted_files, error_msg = extract_archive(
+            archive_content,
+            archive_filename,
+            password
+        )
+        
+        if not success:
+            logger.error(f"Failed to extract archive {archive_filename}: {error_msg}")
+            # We still want to store the archive itself, just log the extraction failure
+            return []
+        
+        extracted_samples = []
+        for extracted_file in extracted_files:
+            try:
+                # Create a note indicating this came from an archive
+                archive_note = f"Extracted from archive: {archive_filename} (SHA512: {archive_sha512[:16]}...)"
+                
+                # Recursively ingest the extracted file
+                # Note: This will handle nested archives automatically
+                extracted_sample, nested_samples = self.ingest_file(
+                    file_content=extracted_file['content'],
+                    filename=extracted_file['filename'],
+                    db=db,
+                    tags=tags,
+                    family=family,
+                    classification=classification,
+                    notes=archive_note,
+                    archive_password=password,  # Try same password for nested archives
+                    parent_archive_sha512=archive_sha512
+                )
+                
+                extracted_samples.append(extracted_sample)
+                extracted_samples.extend(nested_samples)  # Add any nested extracted files
+                
+            except Exception as e:
+                logger.error(f"Failed to ingest extracted file {extracted_file['filename']}: {e}")
+                continue
+        
+        # Update the archive sample with extraction count
+        archive_sample = db.query(MalwareSample).filter(
+            MalwareSample.sha512 == archive_sha512
+        ).first()
+        
+        if archive_sample:
+            archive_sample.extracted_file_count = len(extracted_samples)
+            db.commit()
+        
+        logger.info(f"Extracted and processed {len(extracted_samples)} files from {archive_filename}")
+        return extracted_samples
     
     def run_capa_analysis(self, sample: MalwareSample, db: Session) -> tuple[bool, str]:
         """

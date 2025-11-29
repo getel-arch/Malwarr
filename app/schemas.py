@@ -12,6 +12,7 @@ class MalwareSampleBase(BaseModel):
     family: Optional[str] = None
     classification: Optional[str] = None
     notes: Optional[str] = None
+    archive_password: Optional[str] = None  # Password for encrypted archives
 
 
 class MalwareSampleCreate(MalwareSampleBase):
@@ -27,6 +28,7 @@ class MalwareSampleURL(BaseModel):
     family: Optional[str] = None
     classification: Optional[str] = None
     notes: Optional[str] = None
+    archive_password: Optional[str] = None  # Password for encrypted archives
 
 
 class MalwareSampleUpdate(BaseModel):
@@ -48,6 +50,11 @@ class MalwareSampleResponse(MalwareSampleBase):
     file_size: int
     file_type: FileType
     mime_type: Optional[str]
+    
+    # Archive metadata
+    is_archive: Optional[str]
+    parent_archive_sha512: Optional[str]
+    extracted_file_count: Optional[int]
     
     # PE metadata
     pe_imphash: Optional[str]
@@ -109,3 +116,11 @@ class SystemInfo(BaseModel):
     total_samples: int
     storage_used: int  # bytes
     database_status: str
+
+
+class UploadResponse(BaseModel):
+    """Response for file upload with archive extraction info"""
+    sample: MalwareSampleResponse
+    extracted_samples: List[MalwareSampleResponse] = []
+    is_archive: bool = False
+    extraction_count: int = 0
