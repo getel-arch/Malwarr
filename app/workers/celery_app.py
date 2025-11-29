@@ -9,7 +9,7 @@ celery_app = Celery(
     "malwarr",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=['app.tasks']
+    include=['app.workers.tasks']
 )
 
 # Celery configuration
@@ -25,9 +25,3 @@ celery_app.conf.update(
     worker_prefetch_multiplier=1,  # Process one task at a time
     worker_max_tasks_per_child=10,  # Restart worker after 10 tasks to prevent memory leaks
 )
-
-# Optional: Configure task routes - DISABLED: using default 'celery' queue
-# celery_app.conf.task_routes = {
-#     'app.tasks.analyze_sample_with_capa': {'queue': 'analysis'},
-#     'app.tasks.batch_analyze_samples': {'queue': 'analysis'},
-# }

@@ -23,8 +23,8 @@ from app.schemas import (
 from app.ingestion import IngestionService
 from app.storage import FileStorage
 from app.config import settings, app_name, app_version
-from app.capa_rules_manager import CapaRulesManager
-from app.capa_explorer_manager import CapaExplorerManager
+from app.analyzers.capa.capa_rules_manager import CapaRulesManager
+from app.analyzers.capa.capa_explorer_manager import CapaExplorerManager
 from app.version import __version__, get_full_version
 
 logger = logging.getLogger(__name__)
@@ -431,7 +431,7 @@ async def get_analysis_status(
     # If we have a task ID, try to get detailed status from Celery
     if sample.analysis_task_id:
         try:
-            from app.celery_app import celery_app
+            from app.workers.celery_app import celery_app
             from celery.result import AsyncResult
             
             task = AsyncResult(sample.analysis_task_id, app=celery_app)
@@ -459,7 +459,7 @@ async def batch_analyze_samples(
     - **sha512_list**: List of SHA512 hashes to analyze
     """
     try:
-        from app.tasks import batch_analyze_samples as batch_task
+        from app.workers.tasks import batch_analyze_samples as batch_task
         
         # Validate that samples exist
         existing_samples = db.query(MalwareSample.sha512).filter(
