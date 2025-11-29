@@ -11,7 +11,7 @@ from io import BytesIO
 from pathlib import Path
 
 from app.database import get_db, engine, Base
-from app.models import MalwareSample, FileType
+from app.models import MalwareSample, FileType, AnalysisStatus
 from app.schemas import (
     MalwareSampleResponse,
     MalwareSampleCreate,
@@ -403,6 +403,79 @@ async def run_capa_analysis(
         "task_id": sample.analysis_task_id,
         "message": message
     }
+
+
+@app.post("/api/v1/samples/{sha512}/rescan")
+async def rescan_sample(
+    sha512: str,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Trigger all relevant analyzers for a specific sample (PE/ELF/CAPA)
+
+    - Queues PE/ELF metadata extraction and CAPA analysis when applicable
+    """
+    sample = db.query(MalwareSample).filter(MalwareSample.sha512 == sha512).first()
+
+    if not sample:
+        raise HTTPException(status_code=404, detail="Sample not found")
+
+    queued = {}
+
+    try:
+        # Mark sample as pending
+        sample.analysis_status = AnalysisStatus.PENDING
+        db.commit()
+
+        # Queue PE analysis when appropriate
+        if sample.file_type == FileType.PE:
+            from app.workers.tasks import analyze_sample_with_pe
+            task = analyze_sample_with_pe.delay(sample.sha512)
+            queued['pe'] = task.id
+            sample.analysis_task_id = task.id
+            db.commit()
+
+        # Queue ELF analysis when appropriate
+        if sample.file_type == FileType.ELF:
+            from app.workers.tasks import analyze_sample_with_elf
+            task = analyze_sample_with_elf.delay(sample.sha512)
+            queued['elf'] = task.id
+            sample.analysis_task_id = task.id
+            db.commit()
+
+        # Queue CAPA analysis for PE/ELF
+        if sample.file_type in [FileType.PE, FileType.ELF]:
+            from app.workers.tasks import analyze_sample_with_capa
+            task = analyze_sample_with_capa.delay(sample.sha512)
+            queued['capa'] = task.id
+            sample.analysis_task_id = task.id
+            db.commit()
+
+        if not queued:
+            # Nothing to run for this file type
+            sample.analysis_status = AnalysisStatus.SKIPPED
+            db.commit()
+            return {
+                "status": "skipped",
+                "message": f"No analyzers applicable for file type: {sample.file_type}"
+            }
+
+        return {
+            "status": "queued",
+            "sha512": sha512,
+            "queued": queued
+        }
+
+    except Exception as e:
+        # Attempt to mark failed
+        try:
+            sample.analysis_status = AnalysisStatus.FAILED
+            db.commit()
+        except:
+            pass
+        logger.error(f"Error queueing rescan tasks: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/v1/samples/{sha512}/analyze/status")

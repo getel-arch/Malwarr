@@ -46,6 +46,7 @@ const SampleDetail: React.FC = () => {
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState<any>({});
   const [capaAnalyzing, setCapaAnalyzing] = useState(false);
+  const [rescaning, setRescaning] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'analyzers' | 'relations'>('overview');
   const [activeAnalyzerTab, setActiveAnalyzerTab] = useState<'capa' | 'pe' | 'elf'>('capa');
   const [relatedSamples, setRelatedSamples] = useState<{
@@ -208,6 +209,27 @@ const SampleDetail: React.FC = () => {
             <>
               <button className="btn btn-primary" onClick={() => setEditing(true)}>
                 <FaEdit /> Edit
+              </button>
+              <button
+                className="btn btn-warning"
+                onClick={async () => {
+                  if (!window.confirm('Re-run all applicable analyzers for this sample?')) return;
+                  try {
+                    setRescaning(true);
+                    await malwarrApi.rescanSample(sha512!);
+                    // Reload sample; auto-refresh will track progress
+                    await loadSample();
+                    alert('Rescan queued successfully');
+                  } catch (error: any) {
+                    const err = error.response?.data?.detail || 'Failed to queue rescan. Check API key and server.';
+                    alert(err);
+                  } finally {
+                    setRescaning(false);
+                  }
+                }}
+                disabled={rescaning}
+              >
+                <FaSearch /> {rescaning ? 'Queuing...' : 'Rescan'}
               </button>
               <button className="btn btn-success" onClick={handleDownload}>
                 <FaDownload /> Download
