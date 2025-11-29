@@ -19,6 +19,14 @@ const SampleDetail: React.FC = () => {
     extractedFiles?: MalwareSample[];
   }>({});
 
+  const formatSize = (bytes: number): string => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
   useEffect(() => {
     if (sha512) {
       loadSample();
@@ -221,7 +229,7 @@ const SampleDetail: React.FC = () => {
             </div>
             <div className="info-row">
               <span className="label">Size:</span>
-              <span>{sample.file_size.toLocaleString()} bytes</span>
+              <span>{formatSize(sample.file_size)}</span>
             </div>
             <div className="info-row">
               <span className="label">MIME Type:</span>
@@ -676,7 +684,7 @@ const SampleDetail: React.FC = () => {
                         <span className={`type-badge type-${relatedSamples.parentArchive.file_type}`}>
                           {relatedSamples.parentArchive.file_type.toUpperCase()}
                         </span>
-                        <span>{relatedSamples.parentArchive.file_size.toLocaleString()} bytes</span>
+                        <span>{formatSize(relatedSamples.parentArchive.file_size)}</span>
                       </div>
                     </div>
                     <button 
@@ -709,7 +717,7 @@ const SampleDetail: React.FC = () => {
                           <span className={`type-badge type-${extractedFile.file_type}`}>
                             {extractedFile.file_type.toUpperCase()}
                           </span>
-                          <span>{extractedFile.file_size.toLocaleString()} bytes</span>
+                          <span>{formatSize(extractedFile.file_size)}</span>
                           {extractedFile.entropy && (
                             <span>Entropy: {extractedFile.entropy}</span>
                           )}

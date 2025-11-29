@@ -85,10 +85,16 @@ class IngestionService:
         
         # Get MIME type and description
         mime_type, magic_description = get_file_type_from_magic(file_content)
-        file_type = determine_file_type(mime_type, magic_description)
         
-        # Check if this is an archive
+        # Check if this is an archive (do this before determine_file_type)
         is_archive_file = is_archive(mime_type, magic_description, filename)
+        
+        # Determine file type - if it's an archive, override other detection
+        if is_archive_file:
+            file_type = 'archive'
+        else:
+            # Pass file_content for dynamic detection with filetype package
+            file_type = determine_file_type(mime_type, magic_description, file_content)
         
         # Calculate entropy
         entropy = calculate_entropy(file_content)

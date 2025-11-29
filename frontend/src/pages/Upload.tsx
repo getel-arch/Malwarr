@@ -23,6 +23,14 @@ const Upload: React.FC = () => {
     archive_password: 'infected', // Default password
   });
 
+  const formatSize = (bytes: number): string => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
   // Detect if file is an archive based on extension
   useEffect(() => {
     if (file) {
@@ -148,7 +156,7 @@ const Upload: React.FC = () => {
                 <FaFile className="file-icon" />
                 <div className="file-details">
                   <div className="file-name">{file.name}</div>
-                  <div className="file-size">{(file.size / 1024).toFixed(2)} KB</div>
+                  <div className="file-size">{formatSize(file.size)}</div>
                 </div>
               </div>
             ) : (
@@ -302,7 +310,7 @@ const Upload: React.FC = () => {
                 <p><strong>SHA256:</strong> <code>{uploadResult.sample.sha256}</code></p>
                 <p><strong>File Type:</strong> {uploadResult.sample.file_type}</p>
                 {uploadResult.sample.file_size && (
-                  <p><strong>Size:</strong> {(uploadResult.sample.file_size / 1024).toFixed(2)} KB</p>
+                  <p><strong>Size:</strong> {formatSize(uploadResult.sample.file_size)}</p>
                 )}
               </div>
               <button 

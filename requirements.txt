@@ -7,6 +7,7 @@ python-multipart==0.0.20
 pydantic==2.11.0
 pydantic-settings==2.7.1
 python-magic==0.4.27
+filetype==1.2.0
 pefile==2023.2.7
 pyelftools==0.31
 flare-capa==9.3.1
