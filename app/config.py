@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from app.version import __version__, APP_NAME
 
 
 class Settings(BaseSettings):
@@ -21,8 +22,6 @@ class Settings(BaseSettings):
     api_key: str = "your-api-key-here"
     
     # Application
-    app_name: str = "Malwarr"
-    app_version: str = "1.0.0"
     debug: bool = False
     
     class Config:
@@ -31,3 +30,7 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Application constants (not configurable via .env)
+app_name = APP_NAME
+app_version = __version__

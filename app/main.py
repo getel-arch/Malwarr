@@ -22,9 +22,10 @@ from app.schemas import (
 )
 from app.ingestion import IngestionService
 from app.storage import FileStorage
-from app.config import settings
+from app.config import settings, app_name, app_version
 from app.capa_rules_manager import CapaRulesManager
 from app.capa_explorer_manager import CapaExplorerManager
+from app.version import __version__, get_full_version
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +33,8 @@ logger = logging.getLogger(__name__)
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title=settings.app_name,
-    version=settings.app_version,
+    title=app_name,
+    version=app_version,
     description="Malware repository management system - Arr compatible"
 )
 
@@ -68,6 +69,16 @@ def verify_api_key(x_api_key: str = Header(None)):
     return x_api_key
 
 
+@app.get("/api/v1/version")
+async def get_version():
+    """Get application version information"""
+    return {
+        "version": __version__,
+        "app_name": app_name,
+        "full_version": get_full_version()
+    }
+
+
 @app.get("/api/v1/system", response_model=SystemInfo)
 async def get_system_info(db: Session = Depends(get_db)):
     """Get system information and statistics"""
@@ -75,8 +86,8 @@ async def get_system_info(db: Session = Depends(get_db)):
     storage_used = file_storage.get_storage_size()
     
     return SystemInfo(
-        app_name=settings.app_name,
-        version=settings.app_version,
+        app_name=app_name,
+        version=app_version,
         total_samples=total_samples,
         storage_used=storage_used,
         database_status="connected"

@@ -22,7 +22,7 @@ A malware repository management system inspired by the Arr family (Sonarr, Radar
 
 2. **Start with Docker**:
    ```bash
-   docker-compose up -d
+   docker compose up -d
    ```
 
 3. **Access the application**:
@@ -40,12 +40,6 @@ A malware repository management system inspired by the Arr family (Sonarr, Radar
 - **Upload**: Drag-and-drop files with optional metadata (family, tags, classification)
 - **Samples**: Browse, search, filter, and manage samples
 - **Settings**: Configure API key, download CAPA Explorer/Rules
-
-### CAPA Analysis
-1. Go to Settings → Download CAPA Explorer and CAPA Rules
-2. Upload a PE or ELF sample
-3. Click "Run CAPA Analysis" on the sample detail page
-4. View results in the integrated CAPA Explorer
 
 ### API Examples
 
@@ -76,23 +70,6 @@ curl "http://localhost:8686/api/v1/samples/search?q=emotet"
 
 See API documentation at http://localhost:8686/docs for all endpoints.
 
-
-## Development
-
-**Backend**:
-```bash
-python -m venv venv && venv\Scripts\activate
-pip install -r requirements.txt
-$env:DATABASE_URL="sqlite:///./malwarr.db"; $env:API_KEY="dev-key"
-uvicorn app.main:app --reload --port 8686
-```
-
-**Frontend**:
-```bash
-cd frontend
-npm install && npm start
-```
-
 ## Configuration
 
 Set via environment variables in `.env`:
@@ -107,4 +84,4 @@ MIT License
 
 ---
 
-Inspired by the Arr family (Sonarr, Radarr, Lidarr) • Port 8686
+Inspired by the Arr family (Sonarr, Radarr, Lidarr)
