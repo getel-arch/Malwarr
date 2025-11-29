@@ -13,11 +13,11 @@ import {
 import './Settings.css';
 
 type MainTab = 'api' | 'analyzers' | 'about' | 'endpoints';
-type AnalyzerTab = 'capa-rules' | 'capa-explorer';
+type AnalyzerTab = 'capa';
 
 const Settings: React.FC = () => {
   const [mainTab, setMainTab] = useState<MainTab>('api');
-  const [analyzerTab, setAnalyzerTab] = useState<AnalyzerTab>('capa-rules');
+  const [analyzerTab, setAnalyzerTab] = useState<AnalyzerTab>('capa');
   const [apiKey, setApiKeyState] = useState('');
   const [saved, setSaved] = useState(false);
   
@@ -222,172 +222,165 @@ const Settings: React.FC = () => {
           <>
             <div className="analyzer-tabs">
               <button 
-                className={`analyzer-tab-button ${analyzerTab === 'capa-rules' ? 'active' : ''}`}
-                onClick={() => setAnalyzerTab('capa-rules')}
+                className={`analyzer-tab-button ${analyzerTab === 'capa' ? 'active' : ''}`}
+                onClick={() => setAnalyzerTab('capa')}
               >
-                CAPA Rules
-              </button>
-              <button 
-                className={`analyzer-tab-button ${analyzerTab === 'capa-explorer' ? 'active' : ''}`}
-                onClick={() => setAnalyzerTab('capa-explorer')}
-              >
-                CAPA Explorer
+                CAPA
               </button>
             </div>
 
-            {analyzerTab === 'capa-rules' && (
+            {analyzerTab === 'capa' && (
               <div className="settings-section">
                 <h2>
-                  <FaCogs /> CAPA Rules
+                  <FaCogs /> CAPA Analyzer
                 </h2>
                 <p className="section-description">
-                  Manage CAPA (Capability Analysis) rules for detecting malware capabilities.
+                  Manage CAPA (Capability Analysis) components for detecting malware capabilities.
                 </p>
 
-                {capaRulesStatus && (
-                  <div className="capa-status">
-                    <div className="status-grid">
-                      <div className="status-item">
-                        <span className="label">Rules Installed:</span>
-                        <span className={capaRulesStatus.installed ? 'status-yes' : 'status-no'}>
-                          {capaRulesStatus.installed ? '✓ Yes' : '✗ No'}
-                        </span>
-                      </div>
-                      <div className="status-item">
-                        <span className="label">Rules Count:</span>
-                        <span>{capaRulesStatus.rules_count}</span>
-                      </div>
-                      <div className="status-item">
-                        <span className="label">Last Updated:</span>
-                        <span>{capaRulesStatus.last_updated ? new Date(capaRulesStatus.last_updated).toLocaleString() : 'Never'}</span>
-                      </div>
-                      <div className="status-item">
-                        <span className="label">Size:</span>
-                        <span>{capaRulesStatus.size_mb} MB</span>
-                      </div>
+                {/* CAPA Rules Section */}
+                <div className="capa-subsection">
+              <h3 className="subsection-title">Rules</h3>
+              
+              {capaRulesStatus && (
+                <div className="capa-status">
+                  <div className="status-grid">
+                    <div className="status-item">
+                      <span className="label">Rules Installed:</span>
+                      <span className={capaRulesStatus.installed ? 'status-yes' : 'status-no'}>
+                        {capaRulesStatus.installed ? '✓ Yes' : '✗ No'}
+                      </span>
+                    </div>
+                    <div className="status-item">
+                      <span className="label">Rules Count:</span>
+                      <span>{capaRulesStatus.rules_count}</span>
+                    </div>
+                    <div className="status-item">
+                      <span className="label">Last Updated:</span>
+                      <span>{capaRulesStatus.last_updated ? new Date(capaRulesStatus.last_updated).toLocaleString() : 'Never'}</span>
+                    </div>
+                    <div className="status-item">
+                      <span className="label">Size:</span>
+                      <span>{capaRulesStatus.size_mb} MB</span>
                     </div>
                   </div>
-                )}
+                </div>
+              )}
 
-                {capaMessage && (
-                  <div className={`message ${capaMessage.type === 'success' ? 'success-message' : 'error-message'}`}>
-                    {capaMessage.type === 'success' ? '✓' : '✗'} {capaMessage.text}
-                  </div>
-                )}
+              {capaMessage && (
+                <div className={`message ${capaMessage.type === 'success' ? 'success-message' : 'error-message'}`}>
+                  {capaMessage.type === 'success' ? '✓' : '✗'} {capaMessage.text}
+                </div>
+              )}
 
-                <div className="capa-actions">
-                  <div className="action-group">
-                    <h3>Download Rules</h3>
-                    <p>Download the latest CAPA rules from GitHub (recommended)</p>
-                    <button 
-                      className="btn btn-primary" 
-                      onClick={handleDownloadRules}
+              <div className="capa-actions">
+                <div className="action-group">
+                  <h3>Download Rules</h3>
+                  <p>Download the latest CAPA rules from GitHub (recommended)</p>
+                  <button 
+                    className="btn btn-primary" 
+                    onClick={handleDownloadRules}
+                    disabled={capaLoading}
+                  >
+                    <FaDownload /> {capaLoading ? 'Downloading...' : 'Download Latest Rules'}
+                  </button>
+                </div>
+
+                <div className="action-group">
+                  <h3>Upload Custom Rules</h3>
+                  <p>Upload your own CAPA rules from a ZIP file</p>
+                  <div className="upload-group">
+                    <input
+                      type="file"
+                      accept=".zip"
+                      onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
                       disabled={capaLoading}
-                    >
-                      <FaDownload /> {capaLoading ? 'Downloading...' : 'Download Latest Rules'}
-                    </button>
-                  </div>
-
-                  <div className="action-group">
-                    <h3>Upload Custom Rules</h3>
-                    <p>Upload your own CAPA rules from a ZIP file</p>
-                    <div className="upload-group">
-                      <input
-                        type="file"
-                        accept=".zip"
-                        onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                        disabled={capaLoading}
-                      />
-                      <button 
-                        className="btn btn-secondary" 
-                        onClick={handleUploadRules}
-                        disabled={capaLoading || !uploadFile}
-                      >
-                        <FaUpload /> {capaLoading ? 'Uploading...' : 'Upload Rules'}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="action-group">
-                    <h3>Delete Rules</h3>
-                    <p>Remove all installed CAPA rules</p>
+                    />
                     <button 
-                      className="btn btn-danger" 
-                      onClick={handleDeleteRules}
-                      disabled={capaLoading || !capaRulesStatus?.installed}
+                      className="btn btn-secondary" 
+                      onClick={handleUploadRules}
+                      disabled={capaLoading || !uploadFile}
                     >
-                      <FaTrash /> Delete All Rules
+                      <FaUpload /> {capaLoading ? 'Uploading...' : 'Upload Rules'}
                     </button>
                   </div>
+                </div>
+
+                <div className="action-group">
+                  <h3>Delete Rules</h3>
+                  <p>Remove all installed CAPA rules</p>
+                  <button 
+                    className="btn btn-danger" 
+                    onClick={handleDeleteRules}
+                    disabled={capaLoading || !capaRulesStatus?.installed}
+                  >
+                    <FaTrash /> Delete All Rules
+                  </button>
                 </div>
               </div>
-            )}
+            </div>
 
-            {analyzerTab === 'capa-explorer' && (
-              <div className="settings-section">
-                <h2>
-                  <FaCogs /> CAPA Explorer
-                </h2>
-                <p className="section-description">
-                  Download and host the CAPA Explorer web interface locally for better integration and automatic data loading.
-                </p>
-
-                {capaExplorerStatus && (
-                  <div className="capa-status">
-                    <div className="status-grid">
-                      <div className="status-item">
-                        <span className="label">Explorer Installed:</span>
-                        <span className={capaExplorerStatus.installed ? 'status-yes' : 'status-no'}>
-                          {capaExplorerStatus.installed ? '✓ Yes' : '✗ No'}
-                        </span>
-                      </div>
-                      <div className="status-item">
-                        <span className="label">Files Count:</span>
-                        <span>{capaExplorerStatus.file_count}</span>
-                      </div>
-                      <div className="status-item">
-                        <span className="label">Last Updated:</span>
-                        <span>{capaExplorerStatus.last_updated ? new Date(capaExplorerStatus.last_updated).toLocaleString() : 'Never'}</span>
-                      </div>
-                      <div className="status-item">
-                        <span className="label">Size:</span>
-                        <span>{capaExplorerStatus.size_mb} MB</span>
-                      </div>
+            {/* CAPA Explorer Section */}
+            <div className="capa-subsection">
+              <h3 className="subsection-title">Explorer</h3>
+              
+              {capaExplorerStatus && (
+                <div className="capa-status">
+                  <div className="status-grid">
+                    <div className="status-item">
+                      <span className="label">Explorer Installed:</span>
+                      <span className={capaExplorerStatus.installed ? 'status-yes' : 'status-no'}>
+                        {capaExplorerStatus.installed ? '✓ Yes' : '✗ No'}
+                      </span>
+                    </div>
+                    <div className="status-item">
+                      <span className="label">Files Count:</span>
+                      <span>{capaExplorerStatus.file_count}</span>
+                    </div>
+                    <div className="status-item">
+                      <span className="label">Last Updated:</span>
+                      <span>{capaExplorerStatus.last_updated ? new Date(capaExplorerStatus.last_updated).toLocaleString() : 'Never'}</span>
+                    </div>
+                    <div className="status-item">
+                      <span className="label">Size:</span>
+                      <span>{capaExplorerStatus.size_mb} MB</span>
                     </div>
                   </div>
-                )}
-
-                {explorerMessage && (
-                  <div className={`message ${explorerMessage.type === 'success' ? 'success-message' : 'error-message'}`}>
-                    {explorerMessage.type === 'success' ? '✓' : '✗'} {explorerMessage.text}
-                  </div>
-                )}
-
-                <div className="capa-actions">
-                  <div className="action-group">
-                    <h3>Download Explorer</h3>
-                    <p>Download the latest CAPA Explorer from GitHub (recommended for better UI/UX)</p>
-                    <button 
-                      className="btn btn-primary" 
-                      onClick={handleDownloadExplorer}
-                      disabled={explorerLoading}
-                    >
-                      <FaDownload /> {explorerLoading ? 'Downloading...' : 'Download CAPA Explorer'}
-                    </button>
-                  </div>
-
-                  <div className="action-group">
-                    <h3>Delete Explorer</h3>
-                    <p>Remove the installed CAPA Explorer</p>
-                    <button 
-                      className="btn btn-danger" 
-                      onClick={handleDeleteExplorer}
-                      disabled={explorerLoading || !capaExplorerStatus?.installed}
-                    >
-                      <FaTrash /> Delete Explorer
-                    </button>
-                  </div>
                 </div>
+              )}
+
+              {explorerMessage && (
+                <div className={`message ${explorerMessage.type === 'success' ? 'success-message' : 'error-message'}`}>
+                  {explorerMessage.type === 'success' ? '✓' : '✗'} {explorerMessage.text}
+                </div>
+              )}
+
+              <div className="capa-actions">
+                <div className="action-group">
+                  <h3>Download Explorer</h3>
+                  <p>Download the latest CAPA Explorer from GitHub (recommended for better UI/UX)</p>
+                  <button 
+                    className="btn btn-primary" 
+                    onClick={handleDownloadExplorer}
+                    disabled={explorerLoading}
+                  >
+                    <FaDownload /> {explorerLoading ? 'Downloading...' : 'Download CAPA Explorer'}
+                  </button>
+                </div>
+
+                <div className="action-group">
+                  <h3>Delete Explorer</h3>
+                  <p>Remove the installed CAPA Explorer</p>
+                  <button 
+                    className="btn btn-danger" 
+                    onClick={handleDeleteExplorer}
+                    disabled={explorerLoading || !capaExplorerStatus?.installed}
+                  >
+                    <FaTrash /> Delete Explorer
+                  </button>
+                </div>
+              </div>
+            </div>
               </div>
             )}
           </>

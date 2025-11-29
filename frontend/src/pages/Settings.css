@@ -70,6 +70,23 @@
   background: #f4511e;
 }
 
+.capa-subsection {
+  margin-bottom: 40px;
+}
+
+.capa-subsection:last-child {
+  margin-bottom: 0;
+}
+
+.subsection-title {
+  color: #e0e0e0;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 20px 0;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #333;
+}
+
 .settings-container {
   display: flex;
   flex-direction: column;
