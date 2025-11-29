@@ -12,12 +12,17 @@ const SampleDetail: React.FC = () => {
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState<any>({});
   const [capaAnalyzing, setCapaAnalyzing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'analyzers'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'analyzers' | 'relations'>('overview');
   const [activeAnalyzerTab, setActiveAnalyzerTab] = useState<'capa' | 'pe'>('capa');
+  const [relatedSamples, setRelatedSamples] = useState<{
+    parentArchive?: MalwareSample;
+    extractedFiles?: MalwareSample[];
+  }>({});
 
   useEffect(() => {
     if (sha512) {
       loadSample();
+      loadRelatedSamples();
     }
   }, [sha512]);
 
@@ -50,6 +55,36 @@ const SampleDetail: React.FC = () => {
       console.error('Failed to load sample:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadRelatedSamples = async () => {
+    try {
+      const data = await malwarrApi.getSample(sha512!);
+      
+      // Load parent archive if this sample was extracted from one
+      if (data.parent_archive_sha512) {
+        try {
+          const parentArchive = await malwarrApi.getSample(data.parent_archive_sha512);
+          setRelatedSamples(prev => ({ ...prev, parentArchive }));
+        } catch (error) {
+          console.error('Failed to load parent archive:', error);
+        }
+      }
+      
+      // Load extracted files if this sample is an archive
+      if (data.is_archive === 'true' && data.extracted_file_count && data.extracted_file_count > 0) {
+        try {
+          // Search for samples that have this sample as their parent
+          const allSamples = await malwarrApi.getSamples({ limit: 1000 });
+          const extractedFiles = allSamples.filter(s => s.parent_archive_sha512 === sha512);
+          setRelatedSamples(prev => ({ ...prev, extractedFiles }));
+        } catch (error) {
+          console.error('Failed to load extracted files:', error);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load related samples:', error);
     }
   };
 
@@ -165,6 +200,12 @@ const SampleDetail: React.FC = () => {
           onClick={() => setActiveTab('analyzers')}
         >
           Analyzers
+        </button>
+        <button 
+          className={`tab ${activeTab === 'relations' ? 'active' : ''}`}
+          onClick={() => setActiveTab('relations')}
+        >
+          Relations
         </button>
       </div>
 
@@ -586,6 +627,121 @@ const SampleDetail: React.FC = () => {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Relations Tab Content */}
+      {activeTab === 'relations' && (
+        <div className="relations-tab">
+          <div className="detail-grid">
+            
+            {/* Source URL Section */}
+            {sample.source_url && (
+              <div className="detail-section full-width">
+                <h3>Source Information</h3>
+                <div className="info-grid">
+                  <div className="info-row">
+                    <span className="label">Downloaded from URL:</span>
+                    <a 
+                      href={sample.source_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="source-url"
+                    >
+                      {sample.source_url}
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Parent Archive Section */}
+            {sample.parent_archive_sha512 && relatedSamples.parentArchive && (
+              <div className="detail-section full-width">
+                <h3>Parent Archive</h3>
+                <div className="info-grid">
+                  <div className="info-row">
+                    <span className="label">This file was extracted from:</span>
+                  </div>
+                  <div className="related-sample-card">
+                    <div className="sample-info">
+                      <div className="sample-filename">
+                        {relatedSamples.parentArchive.filename}
+                      </div>
+                      <div className="sample-hashes">
+                        <div><strong>SHA256:</strong> <code>{relatedSamples.parentArchive.sha256}</code></div>
+                        <div><strong>MD5:</strong> <code>{relatedSamples.parentArchive.md5}</code></div>
+                      </div>
+                      <div className="sample-meta">
+                        <span className={`type-badge type-${relatedSamples.parentArchive.file_type}`}>
+                          {relatedSamples.parentArchive.file_type.toUpperCase()}
+                        </span>
+                        <span>{relatedSamples.parentArchive.file_size.toLocaleString()} bytes</span>
+                      </div>
+                    </div>
+                    <button 
+                      className="btn btn-primary"
+                      onClick={() => navigate(`/samples/${relatedSamples.parentArchive!.sha512}`)}
+                    >
+                      View Archive
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Extracted Files Section */}
+            {sample.is_archive === 'true' && relatedSamples.extractedFiles && relatedSamples.extractedFiles.length > 0 && (
+              <div className="detail-section full-width">
+                <h3>Extracted Files ({relatedSamples.extractedFiles.length})</h3>
+                <div className="extracted-files-container">
+                  {relatedSamples.extractedFiles.map((extractedFile) => (
+                    <div key={extractedFile.sha512} className="related-sample-card">
+                      <div className="sample-info">
+                        <div className="sample-filename">
+                          {extractedFile.filename}
+                        </div>
+                        <div className="sample-hashes">
+                          <div><strong>SHA256:</strong> <code>{extractedFile.sha256}</code></div>
+                          <div><strong>MD5:</strong> <code>{extractedFile.md5}</code></div>
+                        </div>
+                        <div className="sample-meta">
+                          <span className={`type-badge type-${extractedFile.file_type}`}>
+                            {extractedFile.file_type.toUpperCase()}
+                          </span>
+                          <span>{extractedFile.file_size.toLocaleString()} bytes</span>
+                          {extractedFile.entropy && (
+                            <span>Entropy: {extractedFile.entropy}</span>
+                          )}
+                        </div>
+                      </div>
+                      <button 
+                        className="btn btn-primary"
+                        onClick={() => navigate(`/samples/${extractedFile.sha512}`)}
+                      >
+                        View Sample
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* No Relations Message */}
+            {!sample.source_url && !sample.parent_archive_sha512 && sample.is_archive !== 'true' && (
+              <div className="detail-section full-width">
+                <p className="no-relations-message">No relationship information available for this sample.</p>
+              </div>
+            )}
+
+            {/* Archive with no extracted files */}
+            {sample.is_archive === 'true' && (!relatedSamples.extractedFiles || relatedSamples.extractedFiles.length === 0) && (
+              <div className="detail-section full-width">
+                <p className="no-relations-message">This archive has no extracted files stored in the database.</p>
+              </div>
+            )}
+
+          </div>
         </div>
       )}
     </div>

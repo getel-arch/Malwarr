@@ -56,6 +56,9 @@ class MalwareSampleResponse(MalwareSampleBase):
     parent_archive_sha512: Optional[str]
     extracted_file_count: Optional[int]
     
+    # Source information
+    source_url: Optional[str]
+    
     # PE metadata
     pe_imphash: Optional[str]
     pe_compilation_timestamp: Optional[datetime]

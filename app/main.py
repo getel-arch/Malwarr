@@ -186,7 +186,8 @@ async def upload_sample_from_url(
             family=sample_data.family,
             classification=sample_data.classification,
             notes=sample_data.notes,
-            archive_password=sample_data.archive_password
+            archive_password=sample_data.archive_password,
+            source_url=sample_data.url
         )
         
         return UploadResponse(

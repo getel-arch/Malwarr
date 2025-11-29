@@ -40,6 +40,8 @@ export interface MalwareSample {
   is_archive?: string;
   parent_archive_sha512?: string;
   extracted_file_count?: number;
+  // Source information
+  source_url?: string;
   pe_imphash?: string;
   pe_compilation_timestamp?: string;
   pe_entry_point?: string;

@@ -34,7 +34,8 @@ class IngestionService:
                     tags: list = None, family: str = None, 
                     classification: str = None, notes: str = None,
                     archive_password: Optional[str] = None,
-                    parent_archive_sha512: Optional[str] = None) -> Tuple[MalwareSample, List[MalwareSample]]:
+                    parent_archive_sha512: Optional[str] = None,
+                    source_url: Optional[str] = None) -> Tuple[MalwareSample, List[MalwareSample]]:
         """
         Ingest a malware file and extract metadata
         
@@ -48,6 +49,7 @@ class IngestionService:
             notes: Optional notes
             archive_password: Optional password for encrypted archives
             parent_archive_sha512: SHA512 of parent archive if this file was extracted
+            source_url: Optional URL where the sample was downloaded from
             
         Returns:
             Tuple of (main_sample, extracted_samples)
@@ -114,7 +116,8 @@ class IngestionService:
             storage_path=get_storage_path(sha512),
             is_archive="true" if is_archive_file else "false",
             parent_archive_sha512=parent_archive_sha512,
-            extracted_file_count=0  # Will be updated if extraction occurs
+            extracted_file_count=0,  # Will be updated if extraction occurs
+            source_url=source_url
         )
         
         # Extract type-specific metadata

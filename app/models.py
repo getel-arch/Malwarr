@@ -97,5 +97,8 @@ class MalwareSample(Base):
     parent_archive_sha512 = Column(String(128), index=True)  # SHA512 of parent archive if extracted from one
     extracted_file_count = Column(Integer, default=0)  # Number of files extracted from this archive
     
+    # Source information
+    source_url = Column(String(2048))  # URL where the sample was downloaded from (if applicable)
+    
     # Storage location (relative path from storage root)
     storage_path = Column(String(255), nullable=False)
