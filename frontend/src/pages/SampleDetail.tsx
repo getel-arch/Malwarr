@@ -365,78 +365,7 @@ const SampleDetail: React.FC = () => {
           )}
         </div>
 
-        {sample.file_type === 'pe' && (sample.pe_sections || sample.pe_imports) && (
-          <div className="detail-section full-width">
-            <h3>PE Analysis</h3>
-            {sample.pe_compilation_timestamp && (
-              <div className="info-row">
-                <span className="label">Compilation:</span>
-                <span>{new Date(sample.pe_compilation_timestamp).toLocaleString()}</span>
-              </div>
-            )}
-            {sample.pe_entry_point && (
-              <div className="info-row">
-                <span className="label">Entry Point:</span>
-                <code>{sample.pe_entry_point}</code>
-              </div>
-            )}
-          </div>
-        )}
 
-        {sample.capa_capabilities && (
-          <div className="detail-section full-width">
-            <h3>CAPA Analysis</h3>
-            <div className="info-grid">
-              {sample.capa_total_capabilities !== undefined && (
-                <div className="info-row">
-                  <span className="label">Total Capabilities:</span>
-                  <span className="badge">{sample.capa_total_capabilities}</span>
-                </div>
-              )}
-              {sample.capa_analysis_date && (
-                <div className="info-row">
-                  <span className="label">Analysis Date:</span>
-                  <span>{new Date(sample.capa_analysis_date).toLocaleString()}</span>
-                </div>
-              )}
-              <div className="info-row full-width">
-                <button 
-                  className="btn btn-primary" 
-                  onClick={() => navigate(`/samples/${sha512}/capa`)}
-                >
-                  <FaSearch /> View in CAPA Explorer
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {!sample.capa_capabilities && (sample.file_type === 'pe' || sample.file_type === 'elf') && (
-          <div className="detail-section full-width">
-            <h3>CAPA Analysis</h3>
-            <div className="info-grid">
-              <div className="info-row">
-                <span className="label">Status:</span>
-                <span>
-                  {sample.analysis_status === 'pending' && 'Analysis queued, waiting to start...'}
-                  {sample.analysis_status === 'analyzing' && 'Analysis in progress...'}
-                  {sample.analysis_status === 'failed' && 'Analysis failed'}
-                  {sample.analysis_status === 'skipped' && 'Analysis skipped (unsupported file type)'}
-                  {!sample.analysis_status && 'No CAPA analysis has been run yet'}
-                </span>
-              </div>
-              <div className="info-row">
-                <button 
-                  className="btn btn-primary" 
-                  onClick={handleRunCapaAnalysis}
-                  disabled={capaAnalyzing || sample.analysis_status === 'pending' || sample.analysis_status === 'analyzing'}
-                >
-                  <FaSearch /> {capaAnalyzing || sample.analysis_status === 'pending' || sample.analysis_status === 'analyzing' ? 'Running Analysis...' : 'Run CAPA Analysis'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         <div className="detail-section full-width">
           <h3>Timestamps</h3>

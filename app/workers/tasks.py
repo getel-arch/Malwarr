@@ -11,10 +11,10 @@ from typing import Dict, Any
 from celery import Task
 from sqlalchemy.orm import Session
 
-from app.celery_app import celery_app
+from app.workers.celery_app import celery_app
 from app.database import SessionLocal
 from app.models import MalwareSample, FileType, AnalysisStatus
-from app.capa_analyzer import CapaAnalyzer
+from app.analyzers.capa.capa_analyzer import CapaAnalyzer
 from app.storage import FileStorage
 from app.config import settings
 
@@ -52,7 +52,7 @@ class DatabaseTask(Task):
             self._db = None
 
 
-@celery_app.task(base=DatabaseTask, bind=True, name='app.tasks.analyze_sample_with_capa')
+@celery_app.task(base=DatabaseTask, bind=True, name='app.workers.tasks.analyze_sample_with_capa')
 def analyze_sample_with_capa(self, sha512: str) -> Dict[str, Any]:
     """
     Analyze a sample with CAPA in the background
@@ -166,7 +166,7 @@ def analyze_sample_with_capa(self, sha512: str) -> Dict[str, Any]:
         }
 
 
-@celery_app.task(base=DatabaseTask, bind=True, name='app.tasks.batch_analyze_samples')
+@celery_app.task(base=DatabaseTask, bind=True, name='app.workers.tasks.batch_analyze_samples')
 def batch_analyze_samples(self, sha512_list: list) -> Dict[str, Any]:
     """
     Analyze multiple samples with CAPA in the background

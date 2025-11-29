@@ -16,8 +16,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Import the managers
-from app.capa_explorer_manager import CapaExplorerManager
-from app.capa_rules_manager import CapaRulesManager
+from app.analyzers.capa.capa_explorer_manager import CapaExplorerManager
+from app.analyzers.capa.capa_rules_manager import CapaRulesManager
 from app.config import settings
 
 

@@ -12,8 +12,8 @@ from app.utils import (
     extract_strings,
     get_storage_path
 )
-from app.pe_analyzer import extract_pe_metadata
-from app.elf_analyzer import extract_elf_metadata
+from app.analyzers.pe.pe_analyzer import extract_pe_metadata
+from app.analyzers.elf.elf_analyzer import extract_elf_metadata
 from app.storage import FileStorage
 from app.archive_utils import is_archive, extract_archive
 from sqlalchemy.orm import Session
@@ -258,7 +258,7 @@ class IngestionService:
         # Queue async CAPA analysis if needed
         if sample.analysis_status == AnalysisStatus.PENDING:
             try:
-                from app.tasks import analyze_sample_with_capa
+                from app.workers.tasks import analyze_sample_with_capa
                 task = analyze_sample_with_capa.delay(sample.sha512)
                 sample.analysis_task_id = task.id
                 db.commit()
@@ -370,7 +370,7 @@ class IngestionService:
         
         try:
             # Queue async CAPA analysis
-            from app.tasks import analyze_sample_with_capa
+            from app.workers.tasks import analyze_sample_with_capa
             
             sample.analysis_status = AnalysisStatus.PENDING
             db.commit()

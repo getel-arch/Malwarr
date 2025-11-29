@@ -24,7 +24,7 @@ services:
   worker:
     image: ghcr.io/getel-arch/malwarr:latest
     container_name: malwarr-worker
-    command: celery -A app.celery_app worker --loglevel=info --concurrency=2
+    command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=2
     environment:
       - DATABASE_URL=postgresql://malwarr:malwarr@db:5432/malwarr
       - REDIS_URL=redis://redis:6379/0
