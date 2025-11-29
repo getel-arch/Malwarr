@@ -60,15 +60,77 @@ export interface MalwareSample {
   extracted_file_count?: number;
   // Source information
   source_url?: string;
+  // PE basic metadata
   pe_imphash?: string;
   pe_compilation_timestamp?: string;
   pe_entry_point?: string;
   pe_sections?: string;
   pe_imports?: string;
   pe_exports?: string;
+  // PE Header information
+  pe_machine?: string;
+  pe_number_of_sections?: number;
+  pe_characteristics?: string;
+  pe_magic?: string;
+  pe_image_base?: string;
+  pe_subsystem?: string;
+  pe_dll_characteristics?: string;
+  pe_checksum?: string;
+  pe_size_of_image?: number;
+  pe_size_of_headers?: number;
+  pe_base_of_code?: string;
+  // PE Version information
+  pe_linker_version?: string;
+  pe_os_version?: string;
+  pe_image_version?: string;
+  pe_subsystem_version?: string;
+  // PE Import/Export counts
+  pe_import_dll_count?: number;
+  pe_imported_functions_count?: number;
+  pe_export_count?: number;
+  // PE Resources
+  pe_resources?: string;
+  pe_resource_count?: number;
+  // PE Version info
+  pe_version_info?: string;
+  // PE Debug info
+  pe_debug_info?: string;
+  // PE TLS
+  pe_tls_info?: string;
+  // PE Rich header
+  pe_rich_header?: string;
+  // PE Digital signature
+  pe_is_signed?: boolean;
+  pe_signature_info?: string;
+  // ELF metadata
   elf_machine?: string;
   elf_entry_point?: string;
+  elf_file_class?: string;
+  elf_data_encoding?: string;
+  elf_os_abi?: string;
+  elf_abi_version?: number;
+  elf_type?: string;
+  elf_version?: string;
+  elf_flags?: string;
+  elf_header_size?: number;
+  elf_program_header_offset?: string;
+  elf_section_header_offset?: string;
+  elf_program_header_entry_size?: number;
+  elf_program_header_count?: number;
+  elf_section_header_entry_size?: number;
+  elf_section_header_count?: number;
   elf_sections?: string;
+  elf_section_count?: number;
+  elf_segments?: string;
+  elf_segment_count?: number;
+  elf_interpreter?: string;
+  elf_dynamic_tags?: string;
+  elf_shared_libraries?: string;
+  elf_shared_library_count?: number;
+  elf_symbols?: string;
+  elf_symbol_count?: number;
+  elf_relocations?: string;
+  elf_relocation_count?: number;
   magic_description?: string;
   strings_count?: number;
   entropy?: string;

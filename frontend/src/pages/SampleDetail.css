@@ -190,6 +190,69 @@
   color: #d32f2f;
 }
 
+/* Collapsible Section Styles */
+.collapsible-section {
+  background: #2a2a2a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.collapsible-header {
+  padding: 14px 18px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s;
+  border-bottom: 1px solid transparent;
+}
+
+.collapsible-header:hover {
+  background: rgba(244, 81, 30, 0.05);
+}
+
+.collapsible-header h4 {
+  margin: 0;
+  color: #f4511e;
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.collapsible-header h4 svg {
+  font-size: 13px;
+  transition: transform 0.2s;
+}
+
+.collapsible-content {
+  padding: 18px;
+  border-top: 1px solid #333;
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.analyzer-content .collapsible-section .info-grid {
+  margin-top: 0;
+}
+
+.analyzer-content .collapsible-section .table-container,
+.analyzer-content .collapsible-section .imports-container,
+.analyzer-content .collapsible-section .exports-container {
+  margin-top: 0;
+}
+
 /* Tab Navigation */
 .tabs {
   display: flex;
@@ -572,3 +635,29 @@
     width: 100%;
   }
 }
+
+/* Additional styling for PE analyzer */
+.function-count {
+  color: #888;
+  font-weight: normal;
+  font-size: 12px;
+}
+
+.badge-success {
+  background: #00c853;
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.badge-warning {
+  background: #ff9800;
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 12px;
+}
+

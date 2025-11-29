@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, DateTime, BigInteger, Text, Enum
+from sqlalchemy import Column, String, Integer, DateTime, BigInteger, Text, Enum, Boolean
 from sqlalchemy.ext.hybrid import hybrid_property
 from datetime import datetime
 from app.database import Base
@@ -53,10 +53,79 @@ class MalwareSample(Base):
     pe_imports = Column(Text)  # JSON array of imports
     pe_exports = Column(Text)  # JSON array of exports
     
+    # PE Header information
+    pe_machine = Column(String(100))
+    pe_number_of_sections = Column(Integer)
+    pe_characteristics = Column(String(20))
+    pe_magic = Column(String(10))
+    pe_image_base = Column(String(20))
+    pe_subsystem = Column(String(100))
+    pe_dll_characteristics = Column(String(20))
+    pe_checksum = Column(String(20))
+    pe_size_of_image = Column(Integer)
+    pe_size_of_headers = Column(Integer)
+    pe_base_of_code = Column(String(20))
+    
+    # PE Version information
+    pe_linker_version = Column(String(20))
+    pe_os_version = Column(String(20))
+    pe_image_version = Column(String(20))
+    pe_subsystem_version = Column(String(20))
+    
+    # PE Import/Export counts
+    pe_import_dll_count = Column(Integer)
+    pe_imported_functions_count = Column(Integer)
+    pe_export_count = Column(Integer)
+    
+    # PE Resources
+    pe_resources = Column(Text)
+    pe_resource_count = Column(Integer)
+    
+    # PE Version info (embedded in binary)
+    pe_version_info = Column(Text)
+    
+    # PE Debug info
+    pe_debug_info = Column(Text)
+    
+    # PE TLS
+    pe_tls_info = Column(Text)
+    
+    # PE Rich header
+    pe_rich_header = Column(Text)
+    
+    # PE Digital signature
+    pe_is_signed = Column(Boolean, default=False)
+    pe_signature_info = Column(Text)
+    
     # ELF specific metadata
     elf_machine = Column(String(50))
     elf_entry_point = Column(String(20))
+    elf_file_class = Column(String(20))  # 32-bit or 64-bit
+    elf_data_encoding = Column(String(20))  # Endianness
+    elf_os_abi = Column(String(50))
+    elf_abi_version = Column(Integer)
+    elf_type = Column(String(50))
+    elf_version = Column(String(20))
+    elf_flags = Column(String(20))
+    elf_header_size = Column(Integer)
+    elf_program_header_offset = Column(String(20))
+    elf_section_header_offset = Column(String(20))
+    elf_program_header_entry_size = Column(Integer)
+    elf_program_header_count = Column(Integer)
+    elf_section_header_entry_size = Column(Integer)
+    elf_section_header_count = Column(Integer)
     elf_sections = Column(Text)  # JSON array of sections
+    elf_section_count = Column(Integer)
+    elf_segments = Column(Text)  # JSON array of program headers/segments
+    elf_segment_count = Column(Integer)
+    elf_interpreter = Column(String(255))  # Dynamic linker/interpreter path
+    elf_dynamic_tags = Column(Text)  # JSON array of dynamic tags
+    elf_shared_libraries = Column(Text)  # JSON array of shared library dependencies
+    elf_shared_library_count = Column(Integer)
+    elf_symbols = Column(Text)  # JSON array of symbols
+    elf_symbol_count = Column(Integer)
+    elf_relocations = Column(Text)  # JSON array of relocations
+    elf_relocation_count = Column(Integer)
     
     # CAPA analysis results
     capa_capabilities = Column(Text)  # JSON object of capabilities by namespace
