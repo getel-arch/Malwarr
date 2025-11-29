@@ -1,8 +1,42 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FaDownload, FaTrash, FaEdit, FaSave, FaTimes, FaSearch } from 'react-icons/fa';
+import { FaDownload, FaTrash, FaEdit, FaSave, FaTimes, FaSearch, FaChevronDown, FaChevronRight } from 'react-icons/fa';
 import { malwarrApi, MalwareSample } from '../services/api';
 import './SampleDetail.css';
+
+// Collapsible Section Component
+interface CollapsibleSectionProps {
+  title: string;
+  defaultCollapsed?: boolean;
+  children: React.ReactNode;
+}
+
+const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({ 
+  title, 
+  defaultCollapsed = true, 
+  children 
+}) => {
+  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
+
+  return (
+    <div className="collapsible-section">
+      <div 
+        className="collapsible-header" 
+        onClick={() => setIsCollapsed(!isCollapsed)}
+      >
+        <h4>
+          {isCollapsed ? <FaChevronRight /> : <FaChevronDown />}
+          {title}
+        </h4>
+      </div>
+      {!isCollapsed && (
+        <div className="collapsible-content">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const SampleDetail: React.FC = () => {
   const { sha512 } = useParams<{ sha512: string }>();
@@ -13,7 +47,7 @@ const SampleDetail: React.FC = () => {
   const [editData, setEditData] = useState<any>({});
   const [capaAnalyzing, setCapaAnalyzing] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'analyzers' | 'relations'>('overview');
-  const [activeAnalyzerTab, setActiveAnalyzerTab] = useState<'capa' | 'pe'>('capa');
+  const [activeAnalyzerTab, setActiveAnalyzerTab] = useState<'capa' | 'pe' | 'elf'>('capa');
   const [relatedSamples, setRelatedSamples] = useState<{
     parentArchive?: MalwareSample;
     extractedFiles?: MalwareSample[];
@@ -443,6 +477,14 @@ const SampleDetail: React.FC = () => {
                 PE
               </button>
             )}
+            {sample.file_type === 'elf' && (
+              <button 
+                className={`sub-tab ${activeAnalyzerTab === 'elf' ? 'active' : ''}`}
+                onClick={() => setActiveAnalyzerTab('elf')}
+              >
+                ELF
+              </button>
+            )}
           </div>
 
           {/* CAPA Sub-tab Content */}
@@ -513,126 +555,800 @@ const SampleDetail: React.FC = () => {
           {activeAnalyzerTab === 'pe' && sample.file_type === 'pe' && (
             <div className="analyzer-content">
               <div className="detail-section full-width">
-                <h3>PE Header Information</h3>
-                <div className="info-grid">
-                  {sample.pe_imphash && (
-                    <div className="info-row">
-                      <span className="label">Import Hash (ImpHash):</span>
-                      <code>{sample.pe_imphash}</code>
-                    </div>
-                  )}
-                  {sample.pe_compilation_timestamp && (
-                    <div className="info-row">
-                      <span className="label">Compilation Timestamp:</span>
-                      <span>{new Date(sample.pe_compilation_timestamp).toLocaleString()}</span>
-                    </div>
-                  )}
-                  {sample.pe_entry_point && (
-                    <div className="info-row">
-                      <span className="label">Entry Point:</span>
-                      <code>{sample.pe_entry_point}</code>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Sections */}
-              {sample.pe_sections && (() => {
-                try {
-                  const sections = JSON.parse(sample.pe_sections);
-                  return (
-                    <div className="detail-section full-width">
-                      <h3>PE Sections ({sections.length})</h3>
-                      <div className="table-container">
-                        <table className="pe-sections-table">
-                          <thead>
-                            <tr>
-                              <th>Name</th>
-                              <th>Virtual Address</th>
-                              <th>Virtual Size</th>
-                              <th>Raw Size</th>
-                              <th>Entropy</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {sections.map((section: any, index: number) => (
-                              <tr key={index}>
-                                <td><code>{section.name}</code></td>
-                                <td><code>{section.virtual_address}</code></td>
-                                <td>{section.virtual_size.toLocaleString()}</td>
-                                <td>{section.raw_size.toLocaleString()}</td>
-                                <td>
-                                  <span className={`entropy-badge ${section.entropy > 7 ? 'high' : section.entropy > 6 ? 'medium' : 'low'}`}>
-                                    {section.entropy.toFixed(2)}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                
+                {/* PE Header Information */}
+                <CollapsibleSection title="PE Header Information" defaultCollapsed={false}>
+                  <div className="info-grid">
+                    {sample.pe_machine && (
+                      <div className="info-row">
+                        <span className="label">Machine Type:</span>
+                        <code>{sample.pe_machine}</code>
                       </div>
-                    </div>
-                  );
-                } catch (e) {
-                  return null;
-                }
-              })()}
-
-              {/* Imports */}
-              {sample.pe_imports && (() => {
-                try {
-                  const imports = JSON.parse(sample.pe_imports);
-                  return (
-                    <div className="detail-section full-width">
-                      <h3>PE Imports ({imports.length} DLLs)</h3>
-                      <div className="imports-container">
-                        {imports.map((imp: any, index: number) => (
-                          <div key={index} className="import-dll">
-                            <h4>{imp.dll}</h4>
-                            <div className="import-functions">
-                              {imp.functions.map((func: string, fIndex: number) => (
-                                <code key={fIndex} className="import-function">{func}</code>
-                              ))}
-                              {imp.functions.length === 0 && <span className="no-functions">No named functions</span>}
-                            </div>
-                          </div>
-                        ))}
+                    )}
+                    {sample.pe_magic && (
+                      <div className="info-row">
+                        <span className="label">Magic (PE Type):</span>
+                        <code>{sample.pe_magic}</code>
                       </div>
-                    </div>
-                  );
-                } catch (e) {
-                  return null;
-                }
-              })()}
+                    )}
+                    {sample.pe_subsystem && (
+                      <div className="info-row">
+                        <span className="label">Subsystem:</span>
+                        <code>{sample.pe_subsystem}</code>
+                      </div>
+                    )}
+                    {sample.pe_compilation_timestamp && (
+                      <div className="info-row">
+                        <span className="label">Compilation Timestamp:</span>
+                        <span>{new Date(sample.pe_compilation_timestamp).toLocaleString()}</span>
+                      </div>
+                    )}
+                    {sample.pe_entry_point && (
+                      <div className="info-row">
+                        <span className="label">Entry Point:</span>
+                        <code>{sample.pe_entry_point}</code>
+                      </div>
+                    )}
+                    {sample.pe_image_base && (
+                      <div className="info-row">
+                        <span className="label">Image Base:</span>
+                        <code>{sample.pe_image_base}</code>
+                      </div>
+                    )}
+                    {sample.pe_base_of_code && (
+                      <div className="info-row">
+                        <span className="label">Base of Code:</span>
+                        <code>{sample.pe_base_of_code}</code>
+                      </div>
+                    )}
+                    {sample.pe_size_of_image && (
+                      <div className="info-row">
+                        <span className="label">Size of Image:</span>
+                        <span>{sample.pe_size_of_image.toLocaleString()} bytes</span>
+                      </div>
+                    )}
+                    {sample.pe_size_of_headers && (
+                      <div className="info-row">
+                        <span className="label">Size of Headers:</span>
+                        <span>{sample.pe_size_of_headers.toLocaleString()} bytes</span>
+                      </div>
+                    )}
+                    {sample.pe_number_of_sections !== undefined && (
+                      <div className="info-row">
+                        <span className="label">Number of Sections:</span>
+                        <span>{sample.pe_number_of_sections}</span>
+                      </div>
+                    )}
+                    {sample.pe_characteristics && (
+                      <div className="info-row">
+                        <span className="label">Characteristics:</span>
+                        <code>{sample.pe_characteristics}</code>
+                      </div>
+                    )}
+                    {sample.pe_dll_characteristics && (
+                      <div className="info-row">
+                        <span className="label">DLL Characteristics:</span>
+                        <code>{sample.pe_dll_characteristics}</code>
+                      </div>
+                    )}
+                    {sample.pe_checksum && (
+                      <div className="info-row">
+                        <span className="label">Checksum:</span>
+                        <code>{sample.pe_checksum}</code>
+                      </div>
+                    )}
+                    {sample.pe_imphash && (
+                      <div className="info-row">
+                        <span className="label">Import Hash (ImpHash):</span>
+                        <code>{sample.pe_imphash}</code>
+                      </div>
+                    )}
+                  </div>
+                </CollapsibleSection>
 
-              {/* Exports */}
-              {sample.pe_exports && (() => {
-                try {
-                  const exports = JSON.parse(sample.pe_exports);
-                  if (exports.length > 0) {
+                {/* Version Information */}
+                {(sample.pe_linker_version || sample.pe_os_version || sample.pe_image_version || sample.pe_subsystem_version) && (
+                  <CollapsibleSection title="PE Version Information" defaultCollapsed={true}>
+                    <div className="info-grid">
+                      {sample.pe_linker_version && (
+                        <div className="info-row">
+                          <span className="label">Linker Version:</span>
+                          <span>{sample.pe_linker_version}</span>
+                        </div>
+                      )}
+                      {sample.pe_os_version && (
+                        <div className="info-row">
+                          <span className="label">OS Version:</span>
+                          <span>{sample.pe_os_version}</span>
+                        </div>
+                      )}
+                      {sample.pe_image_version && (
+                        <div className="info-row">
+                          <span className="label">Image Version:</span>
+                          <span>{sample.pe_image_version}</span>
+                        </div>
+                      )}
+                      {sample.pe_subsystem_version && (
+                        <div className="info-row">
+                          <span className="label">Subsystem Version:</span>
+                          <span>{sample.pe_subsystem_version}</span>
+                        </div>
+                      )}
+                    </div>
+                  </CollapsibleSection>
+                )}
+
+                {/* Digital Signature */}
+                {(sample.pe_is_signed !== undefined) && (
+                  <CollapsibleSection title="Digital Signature" defaultCollapsed={true}>
+                    <div className="info-grid">
+                      <div className="info-row">
+                        <span className="label">Signed:</span>
+                        <span className={sample.pe_is_signed ? 'badge-success' : 'badge-warning'}>
+                          {sample.pe_is_signed ? 'Yes' : 'No'}
+                        </span>
+                      </div>
+                      {sample.pe_signature_info && (() => {
+                        try {
+                          const sigInfo = JSON.parse(sample.pe_signature_info);
+                          return (
+                            <>
+                              {sigInfo.present && (
+                                <div className="info-row">
+                                  <span className="label">Signature Size:</span>
+                                  <span>{sigInfo.size} bytes</span>
+                                </div>
+                              )}
+                            </>
+                          );
+                        } catch (e) {
+                          return null;
+                        }
+                      })()}
+                    </div>
+                  </CollapsibleSection>
+                )}
+
+                {/* Sections */}
+                {sample.pe_sections && (() => {
+                  try {
+                    const sections = JSON.parse(sample.pe_sections);
                     return (
-                      <div className="detail-section full-width">
-                        <h3>PE Exports ({exports.length})</h3>
-                        <div className="exports-container">
-                          {exports.map((exp: string, index: number) => (
-                            <code key={index} className="export-function">{exp}</code>
+                      <CollapsibleSection title={`PE Sections (${sections.length})`} defaultCollapsed={true}>
+                        <div className="table-container">
+                          <table className="pe-sections-table">
+                            <thead>
+                              <tr>
+                                <th>Name</th>
+                                <th>Virtual Address</th>
+                                <th>Virtual Size</th>
+                                <th>Raw Size</th>
+                                <th>Characteristics</th>
+                                <th>Entropy</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {sections.map((section: any, index: number) => (
+                                <tr key={index}>
+                                  <td><code>{section.name}</code></td>
+                                  <td><code>{section.virtual_address}</code></td>
+                                  <td>{section.virtual_size.toLocaleString()}</td>
+                                  <td>{section.raw_size.toLocaleString()}</td>
+                                  <td><code>{section.characteristics}</code></td>
+                                  <td>
+                                    <span className={`entropy-badge ${section.entropy > 7 ? 'high' : section.entropy > 6 ? 'medium' : 'low'}`}>
+                                      {section.entropy.toFixed(2)}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </CollapsibleSection>
+                    );
+                  } catch (e) {
+                    return null;
+                  }
+                })()}
+
+                {/* Imports */}
+                {sample.pe_imports && (() => {
+                  try {
+                    const imports = JSON.parse(sample.pe_imports);
+                    return (
+                      <CollapsibleSection 
+                        title={`PE Imports (${sample.pe_import_dll_count || imports.length} DLLs, ${sample.pe_imported_functions_count || 0} functions)`} 
+                        defaultCollapsed={true}
+                      >
+                        <div className="imports-container">
+                          {imports.map((imp: any, index: number) => (
+                            <div key={index} className="import-dll">
+                              <h4>{imp.dll} <span className="function-count">({imp.functions.length} functions)</span></h4>
+                              <div className="import-functions">
+                                {imp.functions.map((func: string, fIndex: number) => (
+                                  <code key={fIndex} className="import-function">{func}</code>
+                                ))}
+                                {imp.functions.length === 0 && <span className="no-functions">No named functions</span>}
+                              </div>
+                            </div>
                           ))}
                         </div>
-                      </div>
+                      </CollapsibleSection>
                     );
+                  } catch (e) {
+                    return null;
                   }
-                  return null;
-                } catch (e) {
-                  return null;
-                }
-              })()}
+                })()}
 
-              {/* Show message if no PE data available */}
-              {!sample.pe_sections && !sample.pe_imports && !sample.pe_exports && (
-                <div className="detail-section full-width">
+                {/* Exports */}
+                {sample.pe_exports && (() => {
+                  try {
+                    const exportData = JSON.parse(sample.pe_exports);
+                    if (exportData.exports && exportData.exports.length > 0) {
+                      return (
+                        <CollapsibleSection 
+                          title={`PE Exports (${sample.pe_export_count || exportData.exports.length})`} 
+                          defaultCollapsed={true}
+                        >
+                          <div className="info-grid">
+                            {exportData.dll_name && (
+                              <div className="info-row">
+                                <span className="label">Export DLL Name:</span>
+                                <code>{exportData.dll_name}</code>
+                              </div>
+                            )}
+                          </div>
+                          <div className="table-container">
+                            <table className="pe-sections-table">
+                              <thead>
+                                <tr>
+                                  <th>Name</th>
+                                  <th>Ordinal</th>
+                                  <th>Address</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {exportData.exports.map((exp: any, index: number) => (
+                                  <tr key={index}>
+                                    <td><code>{exp.name}</code></td>
+                                    <td>{exp.ordinal}</td>
+                                    <td><code>{exp.address || 'N/A'}</code></td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </CollapsibleSection>
+                      );
+                    }
+                    return null;
+                  } catch (e) {
+                    return null;
+                  }
+                })()}
+
+                {/* Resources */}
+                {sample.pe_resources && (() => {
+                  try {
+                    const resources = JSON.parse(sample.pe_resources);
+                    if (resources.length > 0) {
+                      return (
+                        <CollapsibleSection 
+                          title={`PE Resources (${sample.pe_resource_count || resources.length})`} 
+                          defaultCollapsed={true}
+                        >
+                          <div className="table-container">
+                            <table className="pe-sections-table">
+                              <thead>
+                                <tr>
+                                  <th>Type</th>
+                                  <th>Name</th>
+                                  <th>Language</th>
+                                  <th>Size</th>
+                                  <th>Offset</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {resources.map((resource: any, index: number) => (
+                                  <tr key={index}>
+                                    <td>{resource.type}</td>
+                                    <td><code>{resource.name}</code></td>
+                                    <td>{resource.language || 'N/A'}</td>
+                                    <td>{resource.size.toLocaleString()} bytes</td>
+                                    <td><code>{resource.offset}</code></td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </CollapsibleSection>
+                      );
+                    }
+                    return null;
+                  } catch (e) {
+                    return null;
+                  }
+                })()}
+
+                {/* Version Info */}
+                {sample.pe_version_info && (() => {
+                  try {
+                    const versionInfo = JSON.parse(sample.pe_version_info);
+                    const entries = Object.entries(versionInfo);
+                    if (entries.length > 0) {
+                      return (
+                        <CollapsibleSection title="PE Version Info" defaultCollapsed={true}>
+                          <div className="info-grid">
+                            {entries.map(([key, value]: [string, any]) => (
+                              <div key={key} className="info-row">
+                                <span className="label">{key}:</span>
+                                <span>{typeof value === 'string' ? value : JSON.stringify(value)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </CollapsibleSection>
+                      );
+                    }
+                    return null;
+                  } catch (e) {
+                    return null;
+                  }
+                })()}
+
+                {/* Debug Info */}
+                {sample.pe_debug_info && (() => {
+                  try {
+                    const debugInfo = JSON.parse(sample.pe_debug_info);
+                    if (debugInfo.length > 0) {
+                      return (
+                        <CollapsibleSection title="PE Debug Info" defaultCollapsed={true}>
+                          <div className="table-container">
+                            <table className="pe-sections-table">
+                              <thead>
+                                <tr>
+                                  <th>Type</th>
+                                  <th>Timestamp</th>
+                                  <th>Size</th>
+                                  <th>PDB Path</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {debugInfo.map((debug: any, index: number) => (
+                                  <tr key={index}>
+                                    <td>{debug.type}</td>
+                                    <td>{debug.timestamp}</td>
+                                    <td>{debug.size.toLocaleString()} bytes</td>
+                                    <td><code>{debug.pdb_path || 'N/A'}</code></td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </CollapsibleSection>
+                      );
+                    }
+                    return null;
+                  } catch (e) {
+                    return null;
+                  }
+                })()}
+
+                {/* TLS Info */}
+                {sample.pe_tls_info && (() => {
+                  try {
+                    const tlsInfo = JSON.parse(sample.pe_tls_info);
+                    return (
+                      <CollapsibleSection title="PE TLS (Thread Local Storage)" defaultCollapsed={true}>
+                        <div className="info-grid">
+                          {tlsInfo.callback_address && (
+                            <div className="info-row">
+                              <span className="label">Callback Address:</span>
+                              <code>{tlsInfo.callback_address}</code>
+                            </div>
+                          )}
+                        </div>
+                      </CollapsibleSection>
+                    );
+                  } catch (e) {
+                    return null;
+                  }
+                })()}
+
+                {/* Rich Header */}
+                {sample.pe_rich_header && (() => {
+                  try {
+                    const richHeader = JSON.parse(sample.pe_rich_header);
+                    return (
+                      <CollapsibleSection title="Rich Header" defaultCollapsed={true}>
+                        <div className="info-grid">
+                          {richHeader.checksum && (
+                            <div className="info-row">
+                              <span className="label">Checksum:</span>
+                              <code>{richHeader.checksum}</code>
+                            </div>
+                          )}
+                        </div>
+                        {richHeader.values && richHeader.values.length > 0 && (
+                          <div className="table-container">
+                            <table className="pe-sections-table">
+                              <thead>
+                                <tr>
+                                  <th>Product ID</th>
+                                  <th>Build ID</th>
+                                  <th>Count</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {richHeader.values.map((entry: any, index: number) => (
+                                  <tr key={index}>
+                                    <td>{entry.product_id}</td>
+                                    <td>{entry.build_id}</td>
+                                    <td>{entry.count}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </CollapsibleSection>
+                    );
+                  } catch (e) {
+                    return null;
+                  }
+                })()}
+
+                {/* Show message if no PE data available */}
+                {!sample.pe_sections && !sample.pe_imports && !sample.pe_exports && !sample.pe_imphash && 
+                 !sample.pe_compilation_timestamp && !sample.pe_entry_point && !sample.pe_machine && (
                   <p>No PE analysis data available for this sample.</p>
-                </div>
-              )}
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ELF Analyzer Sub-tab Content */}
+          {activeAnalyzerTab === 'elf' && sample.file_type === 'elf' && (
+            <div className="analyzer-content">
+              <div className="detail-section full-width">
+                
+                {/* ELF Header Information */}
+                <CollapsibleSection title="ELF Header Information" defaultCollapsed={false}>
+                  <div className="info-grid">
+                    {sample.elf_machine && (
+                      <div className="info-row">
+                        <span className="label">Machine Type:</span>
+                        <code>{sample.elf_machine}</code>
+                      </div>
+                    )}
+                    {sample.elf_type && (
+                      <div className="info-row">
+                        <span className="label">ELF Type:</span>
+                        <code>{sample.elf_type}</code>
+                      </div>
+                    )}
+                    {sample.elf_entry_point && (
+                      <div className="info-row">
+                        <span className="label">Entry Point:</span>
+                        <code>{sample.elf_entry_point}</code>
+                      </div>
+                    )}
+                    {sample.elf_file_class && (
+                      <div className="info-row">
+                        <span className="label">File Class:</span>
+                        <code>{sample.elf_file_class}</code>
+                      </div>
+                    )}
+                    {sample.elf_data_encoding && (
+                      <div className="info-row">
+                        <span className="label">Data Encoding:</span>
+                        <code>{sample.elf_data_encoding}</code>
+                      </div>
+                    )}
+                    {sample.elf_os_abi && (
+                      <div className="info-row">
+                        <span className="label">OS/ABI:</span>
+                        <code>{sample.elf_os_abi}</code>
+                      </div>
+                    )}
+                    {sample.elf_abi_version !== undefined && (
+                      <div className="info-row">
+                        <span className="label">ABI Version:</span>
+                        <span>{sample.elf_abi_version}</span>
+                      </div>
+                    )}
+                    {sample.elf_version && (
+                      <div className="info-row">
+                        <span className="label">ELF Version:</span>
+                        <span>{sample.elf_version}</span>
+                      </div>
+                    )}
+                    {sample.elf_flags && (
+                      <div className="info-row">
+                        <span className="label">Flags:</span>
+                        <code>{sample.elf_flags}</code>
+                      </div>
+                    )}
+                    {sample.elf_header_size && (
+                      <div className="info-row">
+                        <span className="label">Header Size:</span>
+                        <span>{sample.elf_header_size} bytes</span>
+                      </div>
+                    )}
+                    {sample.elf_program_header_offset && (
+                      <div className="info-row">
+                        <span className="label">Program Header Offset:</span>
+                        <code>{sample.elf_program_header_offset}</code>
+                      </div>
+                    )}
+                    {sample.elf_section_header_offset && (
+                      <div className="info-row">
+                        <span className="label">Section Header Offset:</span>
+                        <code>{sample.elf_section_header_offset}</code>
+                      </div>
+                    )}
+                    {sample.elf_program_header_count !== undefined && (
+                      <div className="info-row">
+                        <span className="label">Program Headers:</span>
+                        <span>{sample.elf_program_header_count}</span>
+                      </div>
+                    )}
+                    {sample.elf_section_header_count !== undefined && (
+                      <div className="info-row">
+                        <span className="label">Section Headers:</span>
+                        <span>{sample.elf_section_header_count}</span>
+                      </div>
+                    )}
+                    {sample.elf_interpreter && (
+                      <div className="info-row">
+                        <span className="label">Interpreter:</span>
+                        <code>{sample.elf_interpreter}</code>
+                      </div>
+                    )}
+                  </div>
+                </CollapsibleSection>
+
+                {/* Program Headers / Segments */}
+                {sample.elf_segments && (() => {
+                  try {
+                    const segments = JSON.parse(sample.elf_segments);
+                    return (
+                      <CollapsibleSection title={`ELF Program Headers (${segments.length})`} defaultCollapsed={true}>
+                        <div className="table-container">
+                          <table className="pe-sections-table">
+                            <thead>
+                              <tr>
+                                <th>Type</th>
+                                <th>Virtual Address</th>
+                                <th>Physical Address</th>
+                                <th>Offset</th>
+                                <th>File Size</th>
+                                <th>Memory Size</th>
+                                <th>Flags</th>
+                                <th>Alignment</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {segments.map((segment: any, index: number) => (
+                                <tr key={index}>
+                                  <td>{segment.type}</td>
+                                  <td><code>{segment.virtual_address}</code></td>
+                                  <td><code>{segment.physical_address}</code></td>
+                                  <td><code>{segment.offset}</code></td>
+                                  <td>{segment.file_size.toLocaleString()}</td>
+                                  <td>{segment.memory_size.toLocaleString()}</td>
+                                  <td>{segment.flags}</td>
+                                  <td>{segment.alignment}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </CollapsibleSection>
+                    );
+                  } catch (e) {
+                    return null;
+                  }
+                })()}
+
+                {/* Sections */}
+                {sample.elf_sections && (() => {
+                  try {
+                    const sections = JSON.parse(sample.elf_sections);
+                    return (
+                      <CollapsibleSection title={`ELF Sections (${sections.length})`} defaultCollapsed={true}>
+                        <div className="table-container">
+                          <table className="pe-sections-table">
+                            <thead>
+                              <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Address</th>
+                                <th>Offset</th>
+                                <th>Size</th>
+                                <th>Flags</th>
+                                <th>Entropy</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {sections.map((section: any, index: number) => (
+                                <tr key={index}>
+                                  <td><code>{section.name}</code></td>
+                                  <td>{section.type}</td>
+                                  <td><code>{section.address}</code></td>
+                                  <td><code>{section.offset}</code></td>
+                                  <td>{section.size.toLocaleString()}</td>
+                                  <td><code>{section.flags}</code></td>
+                                  <td>
+                                    <span className={`entropy-badge ${section.entropy > 7 ? 'high' : section.entropy > 6 ? 'medium' : 'low'}`}>
+                                      {section.entropy.toFixed(2)}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </CollapsibleSection>
+                    );
+                  } catch (e) {
+                    return null;
+                  }
+                })()}
+
+                {/* Shared Libraries */}
+                {sample.elf_shared_libraries && (() => {
+                  try {
+                    const libraries = JSON.parse(sample.elf_shared_libraries);
+                    if (libraries.length > 0) {
+                      return (
+                        <CollapsibleSection 
+                          title={`Shared Libraries (${sample.elf_shared_library_count || libraries.length})`} 
+                          defaultCollapsed={true}
+                        >
+                          <div className="imports-container">
+                            {libraries.map((lib: string, index: number) => (
+                              <code key={index} className="import-function">{lib}</code>
+                            ))}
+                          </div>
+                        </CollapsibleSection>
+                      );
+                    }
+                    return null;
+                  } catch (e) {
+                    return null;
+                  }
+                })()}
+
+                {/* Symbols */}
+                {sample.elf_symbols && (() => {
+                  try {
+                    const symbols = JSON.parse(sample.elf_symbols);
+                    if (symbols.length > 0) {
+                      return (
+                        <CollapsibleSection 
+                          title={`Symbols (${sample.elf_symbol_count || symbols.length}${sample.elf_symbol_count && sample.elf_symbol_count >= 500 ? '+' : ''})`} 
+                          defaultCollapsed={true}
+                        >
+                          <div className="table-container">
+                            <table className="pe-sections-table">
+                              <thead>
+                                <tr>
+                                  <th>Name</th>
+                                  <th>Value</th>
+                                  <th>Size</th>
+                                  <th>Type</th>
+                                  <th>Binding</th>
+                                  <th>Section</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {symbols.map((symbol: any, index: number) => (
+                                  <tr key={index}>
+                                    <td><code>{symbol.name}</code></td>
+                                    <td><code>{symbol.value}</code></td>
+                                    <td>{symbol.size.toLocaleString()}</td>
+                                    <td>{symbol.type}</td>
+                                    <td>{symbol.binding}</td>
+                                    <td>{symbol.section_index}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                          {sample.elf_symbol_count && sample.elf_symbol_count >= 500 && (
+                            <p className="note">Note: Showing first 500 symbols only</p>
+                          )}
+                        </CollapsibleSection>
+                      );
+                    }
+                    return null;
+                  } catch (e) {
+                    return null;
+                  }
+                })()}
+
+                {/* Relocations */}
+                {sample.elf_relocations && (() => {
+                  try {
+                    const relocations = JSON.parse(sample.elf_relocations);
+                    if (relocations.length > 0) {
+                      return (
+                        <CollapsibleSection 
+                          title={`Relocations (${sample.elf_relocation_count || relocations.length}${sample.elf_relocation_count && sample.elf_relocation_count >= 200 ? '+' : ''})`} 
+                          defaultCollapsed={true}
+                        >
+                          <div className="table-container">
+                            <table className="pe-sections-table">
+                              <thead>
+                                <tr>
+                                  <th>Offset</th>
+                                  <th>Info</th>
+                                  <th>Type</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {relocations.map((reloc: any, index: number) => (
+                                  <tr key={index}>
+                                    <td><code>{reloc.offset}</code></td>
+                                    <td><code>{reloc.info}</code></td>
+                                    <td>{reloc.type}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                          {sample.elf_relocation_count && sample.elf_relocation_count >= 200 && (
+                            <p className="note">Note: Showing first 200 relocations only</p>
+                          )}
+                        </CollapsibleSection>
+                      );
+                    }
+                    return null;
+                  } catch (e) {
+                    return null;
+                  }
+                })()}
+
+                {/* Dynamic Tags */}
+                {sample.elf_dynamic_tags && (() => {
+                  try {
+                    const dynamicTags = JSON.parse(sample.elf_dynamic_tags);
+                    if (dynamicTags.length > 0) {
+                      return (
+                        <CollapsibleSection title={`Dynamic Tags (${dynamicTags.length})`} defaultCollapsed={true}>
+                          <div className="table-container">
+                            <table className="pe-sections-table">
+                              <thead>
+                                <tr>
+                                  <th>Tag</th>
+                                  <th>Value</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {dynamicTags.map((tag: any, index: number) => (
+                                  <tr key={index}>
+                                    <td>{tag.tag}</td>
+                                    <td><code>{tag.value}</code></td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </CollapsibleSection>
+                      );
+                    }
+                    return null;
+                  } catch (e) {
+                    return null;
+                  }
+                })()}
+
+                {/* Show message if no ELF data available */}
+                {!sample.elf_sections && !sample.elf_machine && !sample.elf_entry_point && (
+                  <p>No ELF analysis data available for this sample.</p>
+                )}
+              </div>
             </div>
           )}
         </div>
