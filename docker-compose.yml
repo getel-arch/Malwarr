@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   malwarr:
     image: ghcr.io/getel-arch/malwarr:latest
@@ -15,7 +13,7 @@ services:
       - API_KEY=${API_KEY:-your-api-key-here}
     volumes:
       - malwarr-data:/data
-      - ./config:/config
+      - malwarr-config:/config
     depends_on:
       - db
       - redis
@@ -33,7 +31,7 @@ services:
       - CAPA_EXPLORER_PATH=/data/capa-explorer
     volumes:
       - malwarr-data:/data
-      - ./config:/config
+      - malwarr-config:/config
     depends_on:
       - db
       - redis
@@ -60,5 +58,6 @@ services:
 
 volumes:
   malwarr-data:
+  malwarr-config:
   postgres-data:
   redis-data:
