@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   malwarr:
-    image: ghcr.io/getel-arch/malwarr:latest
+    build: .
     container_name: malwarr
     ports:
       - "8686:8686"
@@ -22,7 +22,7 @@ services:
     restart: unless-stopped
 
   worker:
-    image: ghcr.io/getel-arch/malwarr:latest
+    build: .
     container_name: malwarr-worker
     command: celery -A app.celery_app worker --loglevel=info --concurrency=2
     environment:

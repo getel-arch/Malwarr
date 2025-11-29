@@ -12,6 +12,8 @@ A malware repository management system inspired by the Arr family (Sonarr, Radar
 
 ## Quick Start
 
+### Production Deployment
+
 1. **Clone and configure**:
    ```bash
    git clone https://github.com/getel-arch/Malwarr.git
@@ -20,7 +22,7 @@ A malware repository management system inspired by the Arr family (Sonarr, Radar
    # Edit .env and set your API_KEY
    ```
 
-2. **Start with Docker**:
+2. **Start with Docker** (uses pre-built images from registry):
    ```bash
    docker compose up -d
    ```
@@ -32,6 +34,32 @@ A malware repository management system inspired by the Arr family (Sonarr, Radar
 4. **Configure in Settings**:
    - Enter your API key
    - Download CAPA Explorer and Rules for malware analysis
+
+### Development Setup
+
+For local development with live code changes:
+
+1. **Clone and configure**:
+   ```bash
+   git clone https://github.com/getel-arch/Malwarr.git
+   cd Malwarr
+   cp .env.example .env
+   # Edit .env and set your API_KEY
+   ```
+
+2. **Start with development compose file** (builds images locally):
+   ```bash
+   docker compose -f docker-compose.dev.yml up -d --build
+   ```
+
+3. **Access the application**:
+   - Web UI: http://localhost:8686
+   - API Docs: http://localhost:8686/docs
+
+4. **Development workflow**:
+   - Make code changes in your local files
+   - Rebuild containers: `docker compose -f docker-compose.dev.yml up -d --build`
+   - View logs: `docker compose -f docker-compose.dev.yml logs -f`
 
 ## Usage
 
