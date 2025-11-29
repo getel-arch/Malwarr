@@ -419,6 +419,13 @@ class CapaAnalyzer:
         
         return status
 
+    def analyze(self, file_path: str) -> Dict[str, Any]:
+        """
+        Wrapper method to analyze a file and return results.
+        This ensures compatibility with worker execution.
+        """
+        return self.analyze_file(file_path)
+
 
 def analyze_with_capa(file_path: str, capa_path: Optional[str] = None, rules_path: Optional[str] = None) -> Dict[str, Any]:
     """

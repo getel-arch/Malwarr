@@ -296,6 +296,12 @@ export const malwarrApi = {
     return response.data;
   },
 
+  // Rescan (run all relevant analyzers for a sample)
+  rescanSample: async (sha512: string): Promise<any> => {
+    const response = await api.post(`/api/v1/samples/${sha512}/rescan`);
+    return response.data;
+  },
+
   getCapaResults: async (sha512: string): Promise<any> => {
     const response = await api.get(`/api/v1/samples/${sha512}/capa`);
     return response.data;

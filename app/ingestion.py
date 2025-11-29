@@ -228,10 +228,38 @@ class IngestionService:
                 sample.elf_relocations = elf_metadata.get('relocations')
                 sample.elf_relocation_count = elf_metadata.get('relocation_count')
             
+            # Queue analysis tasks for PE and ELF files
+            if file_type == 'pe':
+                from app.workers.tasks import analyze_sample_with_pe
+                try:
+                    task = analyze_sample_with_pe.delay(sample.sha512)
+                    sample.analysis_task_id = task.id
+                    logger.info(f"PE analysis task queued: {task.id}")
+                except Exception as e:
+                    logger.error(f"Failed to queue PE analysis: {e}")
+                    sample.analysis_status = AnalysisStatus.FAILED
+
+            elif file_type == 'elf':
+                from app.workers.tasks import analyze_sample_with_elf
+                try:
+                    task = analyze_sample_with_elf.delay(sample.sha512)
+                    sample.analysis_task_id = task.id
+                    logger.info(f"ELF analysis task queued: {task.id}")
+                except Exception as e:
+                    logger.error(f"Failed to queue ELF analysis: {e}")
+                    sample.analysis_status = AnalysisStatus.FAILED
+
             # Queue CAPA analysis for PE and ELF files (async)
             if self.enable_capa and file_type in ['pe', 'elf']:
-                logger.info(f"Queuing CAPA analysis for {filename}")
-                sample.analysis_status = AnalysisStatus.PENDING
+                from app.workers.tasks import analyze_sample_with_capa
+                try:
+                    task = analyze_sample_with_capa.delay(sample.sha512)
+                    sample.analysis_task_id = task.id
+                    logger.info(f"CAPA analysis task queued: {task.id}")
+                except Exception as e:
+                    logger.error(f"Failed to queue CAPA analysis: {e}")
+                    sample.analysis_status = AnalysisStatus.FAILED
+
             else:
                 # Mark as skipped for non-PE/ELF files
                 sample.analysis_status = AnalysisStatus.SKIPPED
