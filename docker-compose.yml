@@ -10,7 +10,7 @@ services:
       - STORAGE_PATH=/data/samples
       - CAPA_RULES_PATH=/data/capa-rules
       - CAPA_EXPLORER_PATH=/data/capa-explorer
-      - API_KEY=${API_KEY:-your-api-key-here}
+      - API_KEY=${API_KEY}
     volumes:
       - malwarr-data:/data
       - malwarr-config:/config
