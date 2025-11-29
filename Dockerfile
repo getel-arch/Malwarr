@@ -25,9 +25,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY app/ ./app/
-COPY config/ ./config/
 COPY alembic/ ./alembic/
 COPY alembic.ini ./
+
+# Create config directory (may be empty in repo)
+RUN mkdir -p ./config
 
 # Copy built frontend from previous stage
 COPY --from=frontend-build /frontend/build ./app/static
