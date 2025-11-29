@@ -37,9 +37,6 @@ COPY --from=frontend-build /frontend/build ./app/static
 # Copy setup script
 COPY setup_capa_resources.py ./
 
-# Create data directory
-RUN mkdir -p /data/samples /data/capa-rules /data/capa-explorer
-
 # Download CAPA Explorer and rules using the existing Python managers
 RUN python setup_capa_resources.py
 

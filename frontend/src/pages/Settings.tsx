@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FaSave, FaKey, FaDownload, FaUpload, FaTrash, FaSync, FaCogs, FaInfo, FaNetworkWired } from 'react-icons/fa';
+import { useApp } from '../contexts/AppContext';
 import { 
   setApiKey, 
   getCapaRulesStatus, 
@@ -16,6 +17,7 @@ type MainTab = 'api' | 'analyzers' | 'about' | 'endpoints';
 type AnalyzerTab = 'capa';
 
 const Settings: React.FC = () => {
+  const { appName, version } = useApp();
   const [mainTab, setMainTab] = useState<MainTab>('api');
   const [analyzerTab, setAnalyzerTab] = useState<AnalyzerTab>('capa');
   const [apiKey, setApiKeyState] = useState('');
@@ -388,11 +390,11 @@ const Settings: React.FC = () => {
 
         {mainTab === 'about' && (
           <div className="settings-section">
-            <h2>About Malwarr</h2>
+            <h2>About {appName}</h2>
             <div className="about-info">
               <div className="info-row">
                 <span className="label">Version:</span>
-                <span>1.0.0</span>
+                <span>{version}</span>
               </div>
               <div className="info-row">
                 <span className="label">Description:</span>

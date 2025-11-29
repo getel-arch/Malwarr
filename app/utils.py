@@ -79,8 +79,11 @@ def determine_file_type(mime_type: str, description: str, file_content: bytes = 
                 return 'script'
     
     # Fallback to python-magic based detection
-    # PE executables
-    if 'pe32' in description_lower or 'pe64' in description_lower or mime_lower == 'application/x-dosexec':
+    # PE executables - check for PE indicators more broadly
+    # Prioritize executable detection over archive detection (installers often contain "archive" in description)
+    if ('pe32' in description_lower or 'pe64' in description_lower or 'pe ' in description_lower or 
+        'pe executable' in description_lower or mime_lower == 'application/x-dosexec' or
+        'ms-dos executable' in description_lower or 'windows' in description_lower and 'executable' in description_lower):
         return 'pe'
     
     # ELF executables
@@ -96,6 +99,7 @@ def determine_file_type(mime_type: str, description: str, file_content: bytes = 
         return 'script'
     
     # Archives - comprehensive check
+    # Only classify as archive if it's NOT an executable
     elif (
         'archive' in description_lower or 
         'compressed' in description_lower or 
@@ -109,7 +113,11 @@ def determine_file_type(mime_type: str, description: str, file_content: bytes = 
         'gzip' in mime_lower or
         'bzip' in mime_lower
     ):
-        return 'archive'
+        # Double-check it's not a self-extracting executable
+        if not ('executable' in description_lower and ('pe' in description_lower or 'windows' in description_lower)):
+            return 'archive'
+        else:
+            return 'pe'  # Self-extracting archive is still an executable
     
     # Documents
     elif 'pdf' in mime_lower or 'document' in mime_lower:

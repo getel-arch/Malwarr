@@ -8,6 +8,7 @@ import {
   FaBars,
   FaChartBar 
 } from 'react-icons/fa';
+import { useApp } from '../../contexts/AppContext';
 import './Sidebar.css';
 
 interface SidebarProps {
@@ -16,12 +17,14 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
+  const { appName, version } = useApp();
+
   return (
     <div className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-header">
         <div className="logo">
           <FaBiohazard className="logo-icon" />
-          {!collapsed && <span className="logo-text">Malwarr</span>}
+          {!collapsed && <span className="logo-text">{appName}</span>}
         </div>
         <button className="toggle-btn" onClick={onToggle}>
           <FaBars />
@@ -66,7 +69,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
       <div className="sidebar-footer">
         {!collapsed && (
           <div className="version-info">
-            <small>Version 1.0.0</small>
+            <small>Version {version}</small>
           </div>
         )}
       </div>

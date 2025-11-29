@@ -97,10 +97,21 @@ export interface FamilyStats {
   top_families: Array<{ family: string; count: number }>;
 }
 
+export interface VersionInfo {
+  version: string;
+  app_name: string;
+  full_version: string;
+}
+
 export const malwarrApi = {
   // System
   getSystemInfo: async (): Promise<SystemInfo> => {
     const response = await api.get('/api/v1/system');
+    return response.data;
+  },
+
+  getVersion: async (): Promise<VersionInfo> => {
+    const response = await api.get('/api/v1/version');
     return response.data;
   },
 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useApp } from '../../contexts/AppContext';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import './Layout.css';
@@ -11,6 +12,7 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const location = useLocation();
+  const { appName } = useApp();
 
   const getPageTitle = () => {
     const path = location.pathname;
@@ -19,7 +21,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path.startsWith('/samples/')) return 'Sample Details';
     if (path === '/upload') return 'Upload Sample';
     if (path === '/settings') return 'Settings';
-    return 'Malwarr';
+    return appName;
   };
 
   return (
