@@ -1,0 +1,39 @@
+.tasks-page {
+  padding: 20px;
+}
+
+.tasks-columns {
+  display: flex;
+  gap: 20px;
+}
+
+.tasks-column {
+  flex: 1;
+  background: #111;
+  border: 1px solid #222;
+  padding: 12px;
+  border-radius: 6px;
+}
+
+.tasks-column h3 {
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+.tasks-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.tasks-table th,
+.tasks-table td {
+  padding: 8px 6px;
+  border-bottom: 1px solid #222;
+  text-align: left;
+}
+
+.loading, .no-data {
+  padding: 16px;
+  color: #bbb;
+}

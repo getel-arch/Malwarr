@@ -6,7 +6,8 @@ import {
   FaUpload, 
   FaCog, 
   FaBars,
-  FaChartBar 
+  FaChartBar,
+  FaTasks,
 } from 'react-icons/fa';
 import { useApp } from '../../contexts/AppContext';
 import './Sidebar.css';
@@ -55,6 +56,14 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
         >
           <FaUpload className="nav-icon" />
           {!collapsed && <span>Upload</span>}
+        </NavLink>
+        
+        <NavLink 
+          to="/tasks" 
+          className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+        >
+          <FaTasks className="nav-icon" />
+          {!collapsed && <span>Tasks</span>}
         </NavLink>
 
         <NavLink 
