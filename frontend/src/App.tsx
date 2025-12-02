@@ -8,6 +8,7 @@ import SampleDetail from './pages/SampleDetail';
 import Upload from './pages/Upload';
 import Settings from './pages/Settings';
 import CapaExplorer from './pages/CapaExplorer';
+import Tasks from './pages/Tasks';
 import './App.css';
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
             <Route path="/samples" element={<Samples />} />
             <Route path="/samples/:sha512" element={<SampleDetail />} />
             <Route path="/samples/:sha512/capa" element={<CapaExplorer />} />
+            <Route path="/tasks" element={<Tasks />} />
             <Route path="/upload" element={<Upload />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>

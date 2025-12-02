@@ -317,6 +317,17 @@ export const malwarrApi = {
     const response = await api.get('/api/v1/stats/families');
     return response.data;
   },
+
+  // Tasks / Queue
+  getRunningTasks: async (): Promise<any[]> => {
+    const response = await api.get('/api/v1/tasks/running');
+    return response.data;
+  },
+
+  getTaskQueue: async (): Promise<any[]> => {
+    const response = await api.get('/api/v1/tasks/queue');
+    return response.data;
+  },
 };
 
 // CAPA Rules Management
