@@ -142,6 +142,14 @@ class MalwareSampleResponse(MalwareSampleBase):
     elf_relocations: Optional[str]
     elf_relocation_count: Optional[int]
     
+    # Magika deep learning file type detection
+    magika_label: Optional[str]
+    magika_score: Optional[str]
+    magika_mime_type: Optional[str]
+    magika_group: Optional[str]
+    magika_description: Optional[str]
+    magika_is_text: Optional[bool]
+    
     # CAPA analysis results
     capa_capabilities: Optional[str]
     capa_attack: Optional[str]

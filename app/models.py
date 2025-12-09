@@ -127,6 +127,14 @@ class MalwareSample(Base):
     elf_relocations = Column(Text)  # JSON array of relocations
     elf_relocation_count = Column(Integer)
     
+    # Magika deep learning-based file type detection
+    magika_label = Column(String(100))  # Detected file type label
+    magika_score = Column(String(10))  # Confidence score (0-1)
+    magika_mime_type = Column(String(100))  # Detected MIME type
+    magika_group = Column(String(100))  # File type group/category
+    magika_description = Column(Text)  # Human-readable description
+    magika_is_text = Column(Boolean)  # Whether file is text-based
+    
     # CAPA analysis results
     capa_capabilities = Column(Text)  # JSON object of capabilities by namespace
     capa_attack = Column(Text)  # JSON array of ATT&CK techniques

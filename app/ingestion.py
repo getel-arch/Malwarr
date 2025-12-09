@@ -14,6 +14,7 @@ from app.utils import (
 )
 from app.analyzers.pe.pe_analyzer import extract_pe_metadata
 from app.analyzers.elf.elf_analyzer import extract_elf_metadata
+from app.analyzers.magika.magika_analyzer import extract_magika_metadata
 from app.storage import FileStorage
 from app.archive_utils import is_archive, extract_archive
 from sqlalchemy.orm import Session
@@ -227,6 +228,20 @@ class IngestionService:
                 # Relocations
                 sample.elf_relocations = elf_metadata.get('relocations')
                 sample.elf_relocation_count = elf_metadata.get('relocation_count')
+            
+            # Run Magika analysis for all file types
+            try:
+                magika_metadata = extract_magika_metadata(tmp_path)
+                sample.magika_label = magika_metadata.get('label')
+                sample.magika_score = f"{magika_metadata.get('score'):.4f}" if magika_metadata.get('score') is not None else None
+                sample.magika_mime_type = magika_metadata.get('mime_type')
+                sample.magika_group = magika_metadata.get('group')
+                sample.magika_description = magika_metadata.get('description')
+                sample.magika_is_text = magika_metadata.get('is_text')
+                logger.info(f"Magika analysis completed: {sample.magika_label} (score: {sample.magika_score})")
+            except Exception as e:
+                logger.warning(f"Magika analysis failed: {e}")
+                # Continue even if Magika fails - not critical
             
             # Queue analysis tasks for PE and ELF files
             if file_type == 'pe':
