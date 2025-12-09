@@ -48,7 +48,7 @@ const SampleDetail: React.FC = () => {
   const [capaAnalyzing, setCapaAnalyzing] = useState(false);
   const [rescaning, setRescaning] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'analyzers' | 'relations'>('overview');
-  const [activeAnalyzerTab, setActiveAnalyzerTab] = useState<'capa' | 'pe' | 'elf'>('capa');
+  const [activeAnalyzerTab, setActiveAnalyzerTab] = useState<'capa' | 'pe' | 'elf' | 'magika'>('capa');
   const [relatedSamples, setRelatedSamples] = useState<{
     parentArchive?: MalwareSample;
     extractedFiles?: MalwareSample[];
@@ -436,6 +436,12 @@ const SampleDetail: React.FC = () => {
                 ELF
               </button>
             )}
+            <button 
+              className={`sub-tab ${activeAnalyzerTab === 'magika' ? 'active' : ''}`}
+              onClick={() => setActiveAnalyzerTab('magika')}
+            >
+              Magika
+            </button>
           </div>
 
           {/* CAPA Sub-tab Content */}
@@ -1298,6 +1304,55 @@ const SampleDetail: React.FC = () => {
                 {/* Show message if no ELF data available */}
                 {!sample.elf_sections && !sample.elf_machine && !sample.elf_entry_point && (
                   <p>No ELF analysis data available for this sample.</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Magika Sub-tab Content */}
+          {activeAnalyzerTab === 'magika' && (
+            <div className="analyzer-content">
+              <div className="detail-section full-width">
+                <h3>Magika AI File Type Detection</h3>
+                {sample.magika_label ? (
+                  <div className="info-grid">
+                    <div className="info-row">
+                      <span className="label">Detected Type:</span>
+                      <code className="highlight">{sample.magika_label}</code>
+                    </div>
+                    {sample.magika_score && (
+                      <div className="info-row">
+                        <span className="label">Confidence Score:</span>
+                        <code>{(parseFloat(sample.magika_score) * 100).toFixed(2)}%</code>
+                      </div>
+                    )}
+                    {sample.magika_mime_type && (
+                      <div className="info-row">
+                        <span className="label">MIME Type:</span>
+                        <code>{sample.magika_mime_type}</code>
+                      </div>
+                    )}
+                    {sample.magika_group && (
+                      <div className="info-row">
+                        <span className="label">File Group:</span>
+                        <code>{sample.magika_group}</code>
+                      </div>
+                    )}
+                    {sample.magika_is_text !== null && sample.magika_is_text !== undefined && (
+                      <div className="info-row">
+                        <span className="label">Text-based File:</span>
+                        <code>{sample.magika_is_text ? 'Yes' : 'No'}</code>
+                      </div>
+                    )}
+                    {sample.magika_description && (
+                      <div className="info-row">
+                        <span className="label">Description:</span>
+                        <code>{sample.magika_description}</code>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p>No Magika analysis data available for this sample.</p>
                 )}
               </div>
             </div>

@@ -131,6 +131,13 @@ export interface MalwareSample {
   elf_symbol_count?: number;
   elf_relocations?: string;
   elf_relocation_count?: number;
+  // Magika AI file type detection
+  magika_label?: string;
+  magika_score?: string;
+  magika_mime_type?: string;
+  magika_group?: string;
+  magika_description?: string;
+  magika_is_text?: boolean;
   magic_description?: string;
   strings_count?: number;
   entropy?: string;
