@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaUpload, FaFile, FaLink, FaLock, FaArchive, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { FaUpload, FaFile, FaLink, FaLock, FaArchive, FaEye, FaEyeSlash, FaTimes, FaCheck, FaSpinner } from 'react-icons/fa';
 import { malwarrApi } from '../services/api';
 import './Upload.css';
 
 const Upload: React.FC = () => {
   const navigate = useNavigate();
   const [uploadMode, setUploadMode] = useState<'file' | 'url'>('file');
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [url, setUrl] = useState('');
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<Array<{ filename: string; status: string; taskId?: string }>>([]);
   const [isArchive, setIsArchive] = useState(false);
   const [showPasswordInput, setShowPasswordInput] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -32,36 +33,42 @@ const Upload: React.FC = () => {
 
   // Detect if file is an archive based on extension
   useEffect(() => {
-    if (file) {
-      const filename = file.name.toLowerCase();
-      const archiveExtensions = ['.zip', '.rar', '.7z', '.tar', '.tar.gz', '.tgz', '.tar.bz2', '.tbz2', '.tar.xz', '.txz', '.gz'];
-      const isArchiveFile = archiveExtensions.some(ext => filename.endsWith(ext));
-      setIsArchive(isArchiveFile);
-      setShowPasswordInput(isArchiveFile);
+    if (files.length > 0) {
+      const hasArchive = files.some(file => {
+        const filename = file.name.toLowerCase();
+        const archiveExtensions = ['.zip', '.rar', '.7z', '.tar', '.tar.gz', '.tgz', '.tar.bz2', '.tbz2', '.tar.xz', '.txz', '.gz'];
+        return archiveExtensions.some(ext => filename.endsWith(ext));
+      });
+      setIsArchive(hasArchive);
+      setShowPasswordInput(hasArchive);
     } else {
       setIsArchive(false);
       setShowPasswordInput(false);
     }
-  }, [file]);
+  }, [files]);
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragging(false);
-    const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile) {
-      setFile(droppedFile);
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    if (droppedFiles.length > 0) {
+      setFiles(droppedFiles);
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
+    const selectedFiles = e.target.files;
+    if (selectedFiles && selectedFiles.length > 0) {
+      setFiles(Array.from(selectedFiles));
     }
   };
 
+  const removeFile = (index: number) => {
+    setFiles(files.filter((_, i) => i !== index));
+  };
+
   const handleUpload = async () => {
-    if (uploadMode === 'file' && !file) return;
+    if (uploadMode === 'file' && files.length === 0) return;
     if (uploadMode === 'url' && !url.trim()) return;
 
     // Check if API key is set
@@ -73,17 +80,43 @@ const Upload: React.FC = () => {
 
     try {
       setUploading(true);
-      let result: any = null;
+      setUploadProgress([]);
       
-      if (uploadMode === 'file' && file) {
-        result = await malwarrApi.uploadSample(file, {
-          ...metadata,
-          archive_password: metadata.archive_password || undefined
-        });
+      if (uploadMode === 'file' && files.length > 0) {
+        // Use bulk upload if multiple files, otherwise single upload
+        if (files.length > 1) {
+          const result = await malwarrApi.uploadBulkSamples(files, {
+            ...metadata,
+            archive_password: metadata.archive_password || undefined
+          });
+          
+          setUploadProgress(result.files.map(f => ({
+            filename: f.filename,
+            status: 'queued',
+            taskId: f.task_id
+          })));
+          
+          alert(`${result.total_files} files queued for processing! Check the Tasks page for status.`);
+          navigate('/tasks');
+        } else {
+          const result = await malwarrApi.uploadSample(files[0], {
+            ...metadata,
+            archive_password: metadata.archive_password || undefined
+          });
+          
+          setUploadProgress([{
+            filename: result.filename,
+            status: 'queued',
+            taskId: result.task_id
+          }]);
+          
+          alert('File queued for processing! Redirecting to tasks page...');
+          navigate('/tasks');
+        }
       } else if (uploadMode === 'url') {
         // Parse tags for URL upload
         const tagList = metadata.tags ? metadata.tags.split(',').map((t: string) => t.trim()).filter((t: string) => t) : [];
-        result = await malwarrApi.uploadSampleFromUrl({
+        const result = await malwarrApi.uploadSampleFromUrl({
           url: url.trim(),
           tags: tagList,
           family: metadata.family || undefined,
@@ -91,11 +124,15 @@ const Upload: React.FC = () => {
           notes: metadata.notes || undefined,
           archive_password: metadata.archive_password || undefined,
         });
-      }
-      
-      if (result) {
-        // Always redirect to sample page immediately after upload
-        navigate(`/samples/${result.sample.sha512}`);
+        
+        setUploadProgress([{
+          filename: result.filename,
+          status: 'queued',
+          taskId: result.task_id
+        }]);
+        
+        alert('File queued for processing! Redirecting to tasks page...');
+        navigate('/tasks');
       }
     } catch (error: any) {
       const errorMessage = error.response?.data?.detail || error.message || 'Upload failed';
@@ -127,7 +164,7 @@ const Upload: React.FC = () => {
             className={`mode-btn ${uploadMode === 'url' ? 'active' : ''}`}
             onClick={() => {
               setUploadMode('url');
-              setFile(null);
+              setFiles([]);
             }}
           >
             <FaLink /> URL Download
@@ -136,35 +173,57 @@ const Upload: React.FC = () => {
 
         {/* File upload section */}
         {uploadMode === 'file' && (
-          <div
-            className={`dropzone ${dragging ? 'dragging' : ''} ${file ? 'has-file' : ''}`}
-            onDrop={handleDrop}
-            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-            onDragLeave={() => setDragging(false)}
-            onClick={() => document.getElementById('file-input')?.click()}
-          >
-            {file ? (
-              <div className="file-info">
-                <FaFile className="file-icon" />
-                <div className="file-details">
-                  <div className="file-name">{file.name}</div>
-                  <div className="file-size">{formatSize(file.size)}</div>
+          <>
+            <div
+              className={`dropzone ${dragging ? 'dragging' : ''} ${files.length > 0 ? 'has-file' : ''}`}
+              onDrop={handleDrop}
+              onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+              onDragLeave={() => setDragging(false)}
+              onClick={() => document.getElementById('file-input')?.click()}
+            >
+              {files.length > 0 ? (
+                <div className="file-info">
+                  <FaFile className="file-icon" />
+                  <div className="file-details">
+                    <div className="file-name">
+                      {files.length === 1 ? files[0].name : `${files.length} files selected`}
+                    </div>
+                    {files.length === 1 && (
+                      <div className="file-size">{formatSize(files[0].size)}</div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="drop-message">
-                <FaUpload className="upload-icon" />
-                <h3>Drag & drop a file here</h3>
-                <p>or click to browse</p>
+              ) : (
+                <div className="drop-message">
+                  <FaUpload className="upload-icon" />
+                  <h3>Drag & drop file(s) here</h3>
+                  <p>or click to browse (multiple files supported)</p>
+                </div>
+              )}
+              <input
+                id="file-input"
+                type="file"
+                onChange={handleFileSelect}
+                multiple
+                style={{ display: 'none' }}
+              />
+            </div>
+            {files.length > 1 && (
+              <div className="file-list">
+                <h4>Selected Files:</h4>
+                <ul>
+                  {files.map((file, index) => (
+                    <li key={index}>
+                      <span>{file.name} ({formatSize(file.size)})</span>
+                      <button onClick={(e) => { e.stopPropagation(); removeFile(index); }} className="remove-btn">
+                        <FaTimes />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
-            <input
-              id="file-input"
-              type="file"
-              onChange={handleFileSelect}
-              style={{ display: 'none' }}
-            />
-          </div>
+          </>
         )}
 
         {/* URL input section */}
@@ -188,7 +247,7 @@ const Upload: React.FC = () => {
           </div>
         )}
 
-        {((uploadMode === 'file' && file) || (uploadMode === 'url' && url)) && (
+        {((uploadMode === 'file' && files.length > 0) || (uploadMode === 'url' && url)) && (
           <div className="metadata-form">
             <h3>Sample Metadata (Optional)</h3>
             
@@ -269,12 +328,12 @@ const Upload: React.FC = () => {
                 onClick={handleUpload}
                 disabled={uploading}
               >
-                {uploading ? 'Uploading...' : 'Upload Sample'}
+                {uploading ? 'Uploading...' : files.length > 1 ? `Upload ${files.length} Samples` : 'Upload Sample'}
               </button>
               <button
                 className="btn btn-secondary"
                 onClick={() => {
-                  setFile(null);
+                  setFiles([]);
                   setUrl('');
                   setMetadata({ family: '', classification: '', tags: '', notes: '', archive_password: 'infected' });
                 }}

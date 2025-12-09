@@ -1,16 +1,13 @@
-"""
-Backward compatibility shim for schemas.
-This module re-exports schemas from the new api.schemas package.
-"""
-from app.api.schemas import (
+"""API schemas package"""
+from .samples import (
     MalwareSampleBase,
     MalwareSampleCreate,
     MalwareSampleUpdate,
     MalwareSampleURL,
     MalwareSampleResponse,
-    UploadResponse,
-    SystemInfo
+    UploadResponse
 )
+from .system import SystemInfo
 
 __all__ = [
     "MalwareSampleBase",
