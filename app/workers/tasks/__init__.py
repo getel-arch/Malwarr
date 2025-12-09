@@ -7,9 +7,11 @@ them via `from app.workers.tasks import analyze_sample_with_pe`.
 from .pe_task import analyze_sample_with_pe
 from .elf_task import analyze_sample_with_elf
 from .capa_task import analyze_sample_with_capa
+from .ingestion_task import ingest_file_task
 
 __all__ = [
 	"analyze_sample_with_pe",
 	"analyze_sample_with_elf",
 	"analyze_sample_with_capa",
+	"ingest_file_task",
 ]

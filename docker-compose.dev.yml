@@ -22,7 +22,7 @@ services:
   worker:
     build: .
     container_name: malwarr-worker
-    command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=2
+    command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=4 --max-tasks-per-child=50 -Q ingestion,analysis,celery
     environment:
       - DATABASE_URL=postgresql://malwarr:malwarr@db:5432/malwarr
       - REDIS_URL=redis://redis:6379/0

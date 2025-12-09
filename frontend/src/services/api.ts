@@ -223,7 +223,7 @@ export const malwarrApi = {
     classification?: string;
     notes?: string;
     archive_password?: string;
-  }): Promise<UploadResponse> => {
+  }): Promise<{ task_id: string; filename: string; status: string; message: string }> => {
     const formData = new FormData();
     formData.append('file', file);
     if (metadata?.tags) formData.append('tags', metadata.tags);
@@ -240,6 +240,29 @@ export const malwarrApi = {
     return response.data;
   },
 
+  uploadBulkSamples: async (files: File[], metadata?: {
+    tags?: string;
+    family?: string;
+    classification?: string;
+    notes?: string;
+    archive_password?: string;
+  }): Promise<{ total_files: number; status: string; message: string; files: Array<{ task_id: string; filename: string; size: number }> }> => {
+    const formData = new FormData();
+    files.forEach(file => formData.append('files', file));
+    if (metadata?.tags) formData.append('tags', metadata.tags);
+    if (metadata?.family) formData.append('family', metadata.family);
+    if (metadata?.classification) formData.append('classification', metadata.classification);
+    if (metadata?.notes) formData.append('notes', metadata.notes);
+    if (metadata?.archive_password) formData.append('archive_password', metadata.archive_password);
+
+    const response = await api.post('/api/v1/samples/bulk', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
   uploadSampleFromUrl: async (data: {
     url: string;
     filename?: string;
@@ -248,7 +271,7 @@ export const malwarrApi = {
     classification?: string;
     notes?: string;
     archive_password?: string;
-  }): Promise<UploadResponse> => {
+  }): Promise<{ task_id: string; filename: string; status: string; message: string }> => {
     const response = await api.post('/api/v1/samples/from-url', data);
     return response.data;
   },
