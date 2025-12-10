@@ -515,6 +515,18 @@ export const malwarrApi = {
     const response = await api.get('/api/v1/tasks/queue');
     return response.data;
   },
+
+  getTaskStatus: async (taskId: string): Promise<{
+    task_id: string;
+    state: string;
+    status: string;
+    result?: any;
+    error?: string;
+    info?: any;
+  }> => {
+    const response = await api.get(`/api/v1/tasks/${taskId}`);
+    return response.data;
+  },
 };
 
 // CAPA Rules Management
@@ -562,6 +574,25 @@ export const downloadCapaExplorer = async (version: string = 'latest') => {
 
 export const deleteCapaExplorer = async () => {
   const response = await api.delete('/api/v1/capa/explorer');
+  return response.data;
+};
+
+// Search
+export const searchSamples = async (query: string, limit: number = 100, offset: number = 0) => {
+  const response = await api.get('/api/v1/search/query', {
+    params: { q: query, limit, offset }
+  });
+  return response.data;
+};
+
+export const getSearchFields = async () => {
+  const response = await api.get('/api/v1/search/fields');
+  return response.data;
+};
+
+// Tasks
+export const getTaskStatus = async (taskId: string) => {
+  const response = await api.get(`/api/v1/tasks/${taskId}`);
   return response.data;
 };
 

@@ -132,6 +132,7 @@ def extract_elf_metadata(file_path: str) -> Dict[str, Any]:
             # Dynamic section (shared libraries, etc.)
             dynamic_tags = []
             shared_libraries = []
+            soname = None
             try:
                 for section in elf.iter_sections():
                     if isinstance(section, DynamicSection):
@@ -145,6 +146,10 @@ def extract_elf_metadata(file_path: str) -> Dict[str, Any]:
                             if tag.entry.d_tag == 'DT_NEEDED':
                                 shared_libraries.append(tag.needed)
                             
+                            # Capture SONAME (shared object name) for internal name
+                            if tag.entry.d_tag == 'DT_SONAME':
+                                soname = tag.soname
+                            
                             dynamic_tags.append(tag_info)
             except Exception as e:
                 pass
@@ -152,6 +157,9 @@ def extract_elf_metadata(file_path: str) -> Dict[str, Any]:
             metadata['dynamic_tags'] = json.dumps(dynamic_tags) if dynamic_tags else None
             metadata['shared_libraries'] = json.dumps(shared_libraries) if shared_libraries else None
             metadata['shared_library_count'] = len(shared_libraries)
+            
+            # Store SONAME as internal name for filename resolution
+            metadata['internal_name'] = soname
             
             # Symbol tables
             symbols = []

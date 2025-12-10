@@ -5,6 +5,7 @@ import Layout from './components/Layout/Layout';
 import Dashboard from './pages/Dashboard';
 import Samples from './pages/Samples';
 import SampleDetail from './pages/SampleDetail';
+import Search from './pages/Search';
 import Upload from './pages/Upload';
 import Settings from './pages/Settings';
 import CapaExplorer from './pages/CapaExplorer';
@@ -21,6 +22,7 @@ function App() {
             <Route path="/samples" element={<Samples />} />
             <Route path="/samples/:sha512" element={<SampleDetail />} />
             <Route path="/samples/:sha512/capa" element={<CapaExplorer />} />
+            <Route path="/search" element={<Search />} />
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/upload" element={<Upload />} />
             <Route path="/settings" element={<Settings />} />

@@ -15,7 +15,8 @@ from app.api.routes import (
     analysis_router,
     stats_router,
     capa_management_router,
-    tasks_router
+    tasks_router,
+    search_router
 )
 
 logger = logging.getLogger(__name__)
@@ -47,6 +48,7 @@ app.include_router(analysis_router)
 app.include_router(stats_router)
 app.include_router(capa_management_router)
 app.include_router(tasks_router)
+app.include_router(search_router)
 
 # Mount static files for frontend (CSS, JS, etc.)
 static_path = Path(__file__).parent / "static"

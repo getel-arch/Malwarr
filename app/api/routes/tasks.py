@@ -84,3 +84,35 @@ async def get_task_queue():
     except Exception as e:
         logger.exception("Error fetching task queue")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{task_id}")
+async def get_task_status(task_id: str):
+    """Get the status and result of a specific task by ID"""
+    try:
+        from celery.result import AsyncResult
+        
+        result = AsyncResult(task_id, app=celery_app)
+        
+        response = {
+            "task_id": task_id,
+            "state": result.state,
+            "status": result.status,
+        }
+        
+        # Include result if task is successful
+        if result.successful():
+            response["result"] = result.result
+        
+        # Include error info if task failed
+        if result.failed():
+            response["error"] = str(result.info) if result.info else "Unknown error"
+        
+        # Include progress info if available
+        if result.state == 'PROGRESS':
+            response["info"] = result.info
+        
+        return response
+    except Exception as e:
+        logger.exception(f"Error fetching task status for {task_id}")
+        raise HTTPException(status_code=500, detail=str(e))

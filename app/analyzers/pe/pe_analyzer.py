@@ -154,6 +154,7 @@ def extract_pe_metadata(file_path: str) -> Dict[str, Any]:
         
         # ========== VERSION INFO ==========
         version_info = {}
+        internal_name = None
         try:
             if hasattr(pe, 'VS_VERSIONINFO') and hasattr(pe, 'FileInfo'):
                 for fileinfo in pe.FileInfo:
@@ -163,6 +164,12 @@ def extract_pe_metadata(file_path: str) -> Dict[str, Any]:
                                 key = entry[0].decode('utf-8', errors='ignore')
                                 value = entry[1].decode('utf-8', errors='ignore')
                                 version_info[key] = value
+                                
+                                # Extract internal name (prefer InternalName, fallback to OriginalFilename)
+                                if key == 'InternalName' and value:
+                                    internal_name = value
+                                elif key == 'OriginalFilename' and value and not internal_name:
+                                    internal_name = value
                     elif hasattr(fileinfo, 'Var'):
                         for var in fileinfo.Var:
                             if hasattr(var, 'entry'):
@@ -174,6 +181,9 @@ def extract_pe_metadata(file_path: str) -> Dict[str, Any]:
                     metadata['version_info'] = None
         except:
             metadata['version_info'] = None
+        
+        # Store internal name for filename resolution
+        metadata['internal_name'] = internal_name
         
         # ========== DEBUG INFO ==========
         debug_info = []
