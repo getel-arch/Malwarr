@@ -8,7 +8,8 @@ import {
   PEAnalysis, 
   ELFAnalysis, 
   MagikaAnalysis, 
-  VirusTotalAnalysis 
+  VirusTotalAnalysis,
+  StringsAnalysis
 } from '../services/api';
 import './SampleDetail.css';
 
@@ -56,7 +57,7 @@ const SampleDetail: React.FC = () => {
   const [capaAnalyzing, setCapaAnalyzing] = useState(false);
   const [rescaning, setRescaning] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'analyzers' | 'relations'>('overview');
-  const [activeAnalyzerTab, setActiveAnalyzerTab] = useState<'capa' | 'pe' | 'elf' | 'magika' | 'virustotal'>('capa');
+  const [activeAnalyzerTab, setActiveAnalyzerTab] = useState<'capa' | 'pe' | 'elf' | 'magika' | 'virustotal' | 'strings'>('capa');
   const [relatedSamples, setRelatedSamples] = useState<{
     parentArchive?: MalwareSample;
     extractedFiles?: MalwareSample[];
@@ -68,7 +69,12 @@ const SampleDetail: React.FC = () => {
   const [elfAnalysis, setElfAnalysis] = useState<ELFAnalysis | null>(null);
   const [magikaAnalysis, setMagikaAnalysis] = useState<MagikaAnalysis | null>(null);
   const [vtAnalysis, setVtAnalysis] = useState<VirusTotalAnalysis | null>(null);
+  const [stringsAnalysis, setStringsAnalysis] = useState<StringsAnalysis | null>(null);
   const [analyzersLoading, setAnalyzersLoading] = useState(false);
+  
+  // Strings search state
+  const [stringsSearchTerm, setStringsSearchTerm] = useState('');
+  const [stringsSearchType, setStringsSearchType] = useState<'all' | 'ascii' | 'unicode'>('all');
   
   // Track which analyzer tabs are available
   const [availableAnalyzers, setAvailableAnalyzers] = useState<{
@@ -77,12 +83,14 @@ const SampleDetail: React.FC = () => {
     elf: boolean;
     magika: boolean;
     virustotal: boolean;
+    strings: boolean;
   }>({
     capa: false,
     pe: false,
     elf: false,
     magika: false,
     virustotal: false,
+    strings: false,
   });
 
   const formatSize = (bytes: number): string => {
@@ -123,12 +131,13 @@ const SampleDetail: React.FC = () => {
     setAnalyzersLoading(true);
     try {
       // Load all analyzer results in parallel
-      const [capa, pe, elf, magika, vt] = await Promise.all([
+      const [capa, pe, elf, magika, vt, strings] = await Promise.all([
         malwarrApi.getCapaResults(sha512).catch(() => null),
         malwarrApi.getPEAnalysis(sha512).catch(() => null),
         malwarrApi.getELFAnalysis(sha512).catch(() => null),
         malwarrApi.getMagikaAnalysis(sha512).catch(() => null),
         malwarrApi.getVirusTotalAnalysis(sha512).catch(() => null),
+        malwarrApi.getStringsAnalysis(sha512).catch(() => null),
       ]);
 
       setCapaAnalysis(capa);
@@ -136,6 +145,7 @@ const SampleDetail: React.FC = () => {
       setElfAnalysis(elf);
       setMagikaAnalysis(magika);
       setVtAnalysis(vt);
+      setStringsAnalysis(strings);
 
       // Update available analyzers and set default active tab
       const available = {
@@ -144,6 +154,7 @@ const SampleDetail: React.FC = () => {
         elf: elf !== null,
         magika: magika !== null,
         virustotal: vt !== null,
+        strings: strings !== null,
       };
       
       setAvailableAnalyzers(available);
@@ -159,6 +170,8 @@ const SampleDetail: React.FC = () => {
         setActiveAnalyzerTab('magika');
       } else if (available.virustotal) {
         setActiveAnalyzerTab('virustotal');
+      } else if (available.strings) {
+        setActiveAnalyzerTab('strings');
       }
     } catch (error) {
       console.error('Failed to load analyzer results:', error);
@@ -538,6 +551,14 @@ const SampleDetail: React.FC = () => {
                 VirusTotal
               </button>
             )}
+            {availableAnalyzers.strings && (
+              <button 
+                className={`sub-tab ${activeAnalyzerTab === 'strings' ? 'active' : ''}`}
+                onClick={() => setActiveAnalyzerTab('strings')}
+              >
+                Strings
+              </button>
+            )}
           </div>
 
           {/* Show loading state */}
@@ -576,6 +597,11 @@ const SampleDetail: React.FC = () => {
                     </div>
                   </div>
                 </div>
+              ) : (sample.analysis_status === 'pending' || sample.analysis_status === 'analyzing') ? (
+                <div className="analyzer-loading">
+                  <div className="spinner"></div>
+                  <p>{sample.analysis_status === 'pending' ? 'Analysis queued, waiting to start...' : 'Analysis in progress...'}</p>
+                </div>
               ) : (
                 <div className="detail-section full-width">
                   <h3>CAPA Analysis</h3>
@@ -584,8 +610,6 @@ const SampleDetail: React.FC = () => {
                       <div className="info-row">
                         <span className="label">Status:</span>
                         <span>
-                          {sample.analysis_status === 'pending' && 'Analysis queued, waiting to start...'}
-                          {sample.analysis_status === 'analyzing' && 'Analysis in progress...'}
                           {sample.analysis_status === 'failed' && 'Analysis failed'}
                           {sample.analysis_status === 'skipped' && 'Analysis skipped (unsupported file type)'}
                           {!sample.analysis_status && 'No CAPA analysis has been run yet'}
@@ -595,9 +619,9 @@ const SampleDetail: React.FC = () => {
                         <button 
                           className="btn btn-primary" 
                           onClick={handleRunCapaAnalysis}
-                          disabled={capaAnalyzing || sample.analysis_status === 'pending' || sample.analysis_status === 'analyzing'}
+                          disabled={capaAnalyzing}
                         >
-                          <FaSearch /> {capaAnalyzing || sample.analysis_status === 'pending' || sample.analysis_status === 'analyzing' ? 'Running Analysis...' : 'Run CAPA Analysis'}
+                          <FaSearch /> {capaAnalyzing ? 'Running Analysis...' : 'Run CAPA Analysis'}
                         </button>
                       </div>
                     </div>
@@ -612,8 +636,14 @@ const SampleDetail: React.FC = () => {
           )}
 
           {/* PE Analyzer Sub-tab Content */}
-          {activeAnalyzerTab === 'pe' && peAnalysis && !analyzersLoading && (
+          {activeAnalyzerTab === 'pe' && !analyzersLoading && (
             <div className="analyzer-content">
+              {(sample.analysis_status === 'pending' || sample.analysis_status === 'analyzing') && !peAnalysis ? (
+                <div className="analyzer-loading">
+                  <div className="spinner"></div>
+                  <p>{sample.analysis_status === 'pending' ? 'PE analysis queued, waiting to start...' : 'PE analysis in progress...'}</p>
+                </div>
+              ) : peAnalysis ? (
               <div className="detail-section full-width">
                 
                 {/* PE Header Information */}
@@ -1058,18 +1088,24 @@ const SampleDetail: React.FC = () => {
                   }
                 })()}
 
-                {/* Show message if no PE data available */}
-                {!sample.pe_sections && !sample.pe_imports && !sample.pe_exports && !sample.pe_imphash && 
-                 !sample.pe_compilation_timestamp && !sample.pe_entry_point && !sample.pe_machine && (
-                  <p>No PE analysis data available for this sample.</p>
-                )}
               </div>
+              ) : (
+                <div className="detail-section full-width">
+                  <p>No PE analysis data available for this sample.</p>
+                </div>
+              )}
             </div>
           )}
 
           {/* ELF Analyzer Sub-tab Content */}
-          {activeAnalyzerTab === 'elf' && elfAnalysis && !analyzersLoading && (
+          {activeAnalyzerTab === 'elf' && !analyzersLoading && (
             <div className="analyzer-content">
+              {(sample.analysis_status === 'pending' || sample.analysis_status === 'analyzing') && !elfAnalysis ? (
+                <div className="analyzer-loading">
+                  <div className="spinner"></div>
+                  <p>{sample.analysis_status === 'pending' ? 'ELF analysis queued, waiting to start...' : 'ELF analysis in progress...'}</p>
+                </div>
+              ) : elfAnalysis ? (
               <div className="detail-section full-width">
                 
                 {/* ELF Header Information */}
@@ -1405,12 +1441,23 @@ const SampleDetail: React.FC = () => {
                 })()}
 
               </div>
+              ) : (
+                <div className="detail-section full-width">
+                  <p>No ELF analysis data available for this sample.</p>
+                </div>
+              )}
             </div>
           )}
 
           {/* Magika Sub-tab Content */}
-          {activeAnalyzerTab === 'magika' && magikaAnalysis && !analyzersLoading && (
+          {activeAnalyzerTab === 'magika' && !analyzersLoading && (
             <div className="analyzer-content">
+              {(sample.analysis_status === 'pending' || sample.analysis_status === 'analyzing') && !magikaAnalysis ? (
+                <div className="analyzer-loading">
+                  <div className="spinner"></div>
+                  <p>{sample.analysis_status === 'pending' ? 'Magika analysis queued, waiting to start...' : 'Magika analysis in progress...'}</p>
+                </div>
+              ) : magikaAnalysis ? (
               <div className="detail-section full-width">
                 <h3>Magika AI File Type Detection</h3>
                 <div className="info-grid">
@@ -1450,12 +1497,23 @@ const SampleDetail: React.FC = () => {
                   )}
                 </div>
               </div>
+              ) : (
+                <div className="detail-section full-width">
+                  <p>No Magika analysis data available for this sample.</p>
+                </div>
+              )}
             </div>
           )}
 
           {/* VirusTotal Sub-tab Content */}
-          {activeAnalyzerTab === 'virustotal' && vtAnalysis && !analyzersLoading && (
+          {activeAnalyzerTab === 'virustotal' && !analyzersLoading && (
             <div className="analyzer-content">
+              {(sample.analysis_status === 'pending' || sample.analysis_status === 'analyzing') && !vtAnalysis ? (
+                <div className="analyzer-loading">
+                  <div className="spinner"></div>
+                  <p>{sample.analysis_status === 'pending' ? 'VirusTotal analysis queued, waiting to start...' : 'VirusTotal analysis in progress...'}</p>
+                </div>
+              ) : vtAnalysis ? (
               <div className="detail-section full-width">
                 <h3>VirusTotal Analysis</h3>
                 {vtAnalysis.positives !== null && vtAnalysis.positives !== undefined ? (
@@ -1559,6 +1617,188 @@ const SampleDetail: React.FC = () => {
                   </div>
                 )}
               </div>
+              ) : (
+                <div className="detail-section full-width">
+                  <p>No VirusTotal analysis data available for this sample.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Strings Sub-tab Content */}
+          {activeAnalyzerTab === 'strings' && !analyzersLoading && (
+            <div className="analyzer-content">
+              {(sample.analysis_status === 'pending' || sample.analysis_status === 'analyzing') && !stringsAnalysis ? (
+                <div className="analyzer-loading">
+                  <div className="spinner"></div>
+                  <p>{sample.analysis_status === 'pending' ? 'Strings analysis queued, waiting to start...' : 'Strings analysis in progress...'}</p>
+                </div>
+              ) : stringsAnalysis ? (
+              <div className="detail-section full-width">
+                <h3>Strings Analysis</h3>
+                
+                {/* Summary Statistics */}
+                <CollapsibleSection title="Summary" defaultCollapsed={false}>
+                  <div className="info-grid">
+                    {stringsAnalysis.total_count !== undefined && (
+                      <div className="info-row">
+                        <span className="label">Total Strings:</span>
+                        <span className="badge">{stringsAnalysis.total_count.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {stringsAnalysis.ascii_count !== undefined && (
+                      <div className="info-row">
+                        <span className="label">ASCII Strings:</span>
+                        <span>{stringsAnalysis.ascii_count.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {stringsAnalysis.unicode_count !== undefined && (
+                      <div className="info-row">
+                        <span className="label">Unicode Strings:</span>
+                        <span>{stringsAnalysis.unicode_count.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {stringsAnalysis.min_length !== undefined && (
+                      <div className="info-row">
+                        <span className="label">Minimum Length:</span>
+                        <span>{stringsAnalysis.min_length} characters</span>
+                      </div>
+                    )}
+                    {stringsAnalysis.longest_string_length !== undefined && (
+                      <div className="info-row">
+                        <span className="label">Longest String:</span>
+                        <span>{stringsAnalysis.longest_string_length} characters</span>
+                      </div>
+                    )}
+                    {stringsAnalysis.average_string_length && (
+                      <div className="info-row">
+                        <span className="label">Average Length:</span>
+                        <span>{stringsAnalysis.average_string_length} characters</span>
+                      </div>
+                    )}
+                    {stringsAnalysis.analysis_date && (
+                      <div className="info-row">
+                        <span className="label">Analysis Date:</span>
+                        <span>{new Date(stringsAnalysis.analysis_date).toLocaleString()}</span>
+                      </div>
+                    )}
+                  </div>
+                </CollapsibleSection>
+
+                {/* Search Controls */}
+                <div style={{ marginTop: '20px', marginBottom: '20px' }}>
+                  <div className="strings-search-controls">
+                    <input
+                      type="text"
+                      className="strings-search-input"
+                      placeholder="Search strings... (case-insensitive)"
+                      value={stringsSearchTerm}
+                      onChange={(e) => setStringsSearchTerm(e.target.value)}
+                    />
+                    <div className="strings-search-filters">
+                      <label>
+                        <input
+                          type="radio"
+                          name="stringsType"
+                          value="all"
+                          checked={stringsSearchType === 'all'}
+                          onChange={() => setStringsSearchType('all')}
+                        />
+                        All Strings
+                      </label>
+                      <label>
+                        <input
+                          type="radio"
+                          name="stringsType"
+                          value="ascii"
+                          checked={stringsSearchType === 'ascii'}
+                          onChange={() => setStringsSearchType('ascii')}
+                        />
+                        ASCII Only
+                      </label>
+                      <label>
+                        <input
+                          type="radio"
+                          name="stringsType"
+                          value="unicode"
+                          checked={stringsSearchType === 'unicode'}
+                          onChange={() => setStringsSearchType('unicode')}
+                        />
+                        Unicode Only
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Strings Display */}
+                {(() => {
+                  try {
+                    let allStrings: Array<{str: string, type: 'ascii' | 'unicode'}> = [];
+                    
+                    // Parse and combine strings based on filter
+                    if (stringsSearchType === 'all' || stringsSearchType === 'ascii') {
+                      const asciiStrings = stringsAnalysis.ascii_strings ? JSON.parse(stringsAnalysis.ascii_strings) : [];
+                      allStrings = allStrings.concat(asciiStrings.map((s: string) => ({ str: s, type: 'ascii' as const })));
+                    }
+                    
+                    if (stringsSearchType === 'all' || stringsSearchType === 'unicode') {
+                      const unicodeStrings = stringsAnalysis.unicode_strings ? JSON.parse(stringsAnalysis.unicode_strings) : [];
+                      allStrings = allStrings.concat(unicodeStrings.map((s: string) => ({ str: s, type: 'unicode' as const })));
+                    }
+
+                    // Apply search filter
+                    const filteredStrings = stringsSearchTerm
+                      ? allStrings.filter(item => item.str.toLowerCase().includes(stringsSearchTerm.toLowerCase()))
+                      : allStrings;
+
+                    const displayLimit = 1000;
+                    const displayStrings = filteredStrings.slice(0, displayLimit);
+
+                    return (
+                      <CollapsibleSection 
+                        title={stringsSearchTerm 
+                          ? `Search Results (${filteredStrings.length} matches)` 
+                          : `All Strings (${allStrings.length} total)`
+                        } 
+                        defaultCollapsed={false}
+                      >
+                        <div className="strings-list">
+                          {displayStrings.length > 0 ? (
+                            <>
+                              {displayStrings.map((item, index: number) => (
+                                <div key={index} className="string-item">
+                                  <span className={`string-type-badge type-${item.type}`}>{item.type}</span>
+                                  <code>{item.str}</code>
+                                </div>
+                              ))}
+                              {filteredStrings.length > displayLimit && (
+                                <div className="string-item">
+                                  <em>Showing first {displayLimit} of {filteredStrings.length.toLocaleString()} matching strings</em>
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <div className="string-item">
+                              <em>No strings found matching "{stringsSearchTerm}"</em>
+                            </div>
+                          )}
+                        </div>
+                      </CollapsibleSection>
+                    );
+                  } catch (e) {
+                    return (
+                      <div className="error">
+                        Error loading strings: {e instanceof Error ? e.message : 'Unknown error'}
+                      </div>
+                    );
+                  }
+                })()}
+              </div>
+              ) : (
+                <div className="detail-section full-width">
+                  <p>No Strings analysis data available for this sample.</p>
+                </div>
+              )}
             </div>
           )}
         </div>

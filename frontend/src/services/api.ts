@@ -299,6 +299,28 @@ export interface VirusTotalAnalysis {
   analysis_date: string;
 }
 
+export interface StringsAnalysis {
+  ascii_strings?: string;
+  unicode_strings?: string;
+  ascii_count?: number;
+  unicode_count?: number;
+  total_count?: number;
+  min_length?: number;
+  longest_string_length?: number;
+  average_string_length?: string;
+  urls?: string;
+  ip_addresses?: string;
+  file_paths?: string;
+  registry_keys?: string;
+  email_addresses?: string;
+  url_count?: number;
+  ip_count?: number;
+  file_path_count?: number;
+  registry_key_count?: number;
+  email_count?: number;
+  analysis_date: string;
+}
+
 export const malwarrApi = {
   // System
   getSystemInfo: async (): Promise<SystemInfo> => {
@@ -464,6 +486,11 @@ export const malwarrApi = {
 
   getVirusTotalAnalysis: async (sha512: string): Promise<VirusTotalAnalysis | null> => {
     const response = await api.get(`/api/v1/samples/${sha512}/analysis/virustotal`);
+    return response.data;
+  },
+
+  getStringsAnalysis: async (sha512: string): Promise<StringsAnalysis | null> => {
+    const response = await api.get(`/api/v1/samples/${sha512}/analysis/strings`);
     return response.data;
   },
 

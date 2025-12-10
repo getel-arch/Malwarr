@@ -125,6 +125,32 @@ class VirusTotalAnalysisResponse(BaseModel):
         from_attributes = True
 
 
+class StringsAnalysisResponse(BaseModel):
+    """Schema for Strings analysis results"""
+    ascii_strings: Optional[str]
+    unicode_strings: Optional[str]
+    ascii_count: Optional[int]
+    unicode_count: Optional[int]
+    total_count: Optional[int]
+    min_length: Optional[int]
+    longest_string_length: Optional[int]
+    average_string_length: Optional[str]
+    urls: Optional[str]
+    ip_addresses: Optional[str]
+    file_paths: Optional[str]
+    registry_keys: Optional[str]
+    email_addresses: Optional[str]
+    url_count: Optional[int]
+    ip_count: Optional[int]
+    file_path_count: Optional[int]
+    registry_key_count: Optional[int]
+    email_count: Optional[int]
+    analysis_date: datetime
+    
+    class Config:
+        from_attributes = True
+
+
 class MalwareSampleBase(BaseModel):
     """Base schema for malware sample"""
     filename: str
@@ -185,6 +211,7 @@ class MalwareSampleResponse(MalwareSampleBase):
     magika_analysis: Optional[MagikaAnalysisResponse] = None
     capa_analysis: Optional[CAPAAnalysisResponse] = None
     virustotal_analysis: Optional[VirusTotalAnalysisResponse] = None
+    strings_analysis: Optional[StringsAnalysisResponse] = None
     
     # Analysis status
     analysis_status: Optional[str]
