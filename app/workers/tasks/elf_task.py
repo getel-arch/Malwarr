@@ -114,6 +114,15 @@ def analyze_sample_with_elf(self, sha512: str) -> Dict[str, Any]:
             elf_analysis.relocation_count = elf_metadata.get('relocation_count')
             elf_analysis.analysis_date = datetime.utcnow()
             
+            # Update sample filename with internal name (SONAME) if available
+            internal_name = elf_metadata.get('internal_name')
+            if internal_name:
+                # Store the SONAME in internal_name field
+                sample.internal_name = internal_name
+                # Use SONAME as the display filename
+                sample.filename = internal_name
+                logger.info(f"Updated filename from '{sample.filename}' to internal name (SONAME): '{internal_name}'")
+            
             sample.analysis_status = AnalysisStatus.COMPLETED
             self.db.commit()
 

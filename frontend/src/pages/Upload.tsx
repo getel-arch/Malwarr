@@ -67,6 +67,35 @@ const Upload: React.FC = () => {
     setFiles(files.filter((_, i) => i !== index));
   };
 
+  const pollTaskStatus = async (taskId: string, filename: string): Promise<string | null> => {
+    // Poll task status every 2 seconds for up to 30 seconds
+    const maxAttempts = 15;
+    let attempts = 0;
+
+    while (attempts < maxAttempts) {
+      try {
+        const taskStatus = await malwarrApi.getTaskStatus(taskId);
+        
+        if (taskStatus.state === 'SUCCESS' && taskStatus.result?.sha512) {
+          return taskStatus.result.sha512;
+        } else if (taskStatus.state === 'FAILURE') {
+          console.error('Task failed:', taskStatus.error);
+          return null;
+        }
+        
+        // Wait 2 seconds before next poll
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        attempts++;
+      } catch (error) {
+        console.error('Error polling task status:', error);
+        return null;
+      }
+    }
+    
+    // Timeout - task is taking too long
+    return null;
+  };
+
   const handleUpload = async () => {
     if (uploadMode === 'file' && files.length === 0) return;
     if (uploadMode === 'url' && !url.trim()) return;
@@ -106,12 +135,19 @@ const Upload: React.FC = () => {
           
           setUploadProgress([{
             filename: result.filename,
-            status: 'queued',
+            status: 'processing',
             taskId: result.task_id
           }]);
           
-          alert('File queued for processing! Redirecting to tasks page...');
-          navigate('/tasks');
+          // Poll task status and redirect to sample page when complete
+          const sha512 = await pollTaskStatus(result.task_id, result.filename);
+          
+          if (sha512) {
+            navigate(`/samples/${sha512}`);
+          } else {
+            alert('Sample uploaded and queued for processing. Check the Tasks page for status.');
+            navigate('/tasks');
+          }
         }
       } else if (uploadMode === 'url') {
         // Parse tags for URL upload
@@ -127,12 +163,19 @@ const Upload: React.FC = () => {
         
         setUploadProgress([{
           filename: result.filename,
-          status: 'queued',
+          status: 'processing',
           taskId: result.task_id
         }]);
         
-        alert('File queued for processing! Redirecting to tasks page...');
-        navigate('/tasks');
+        // Poll task status and redirect to sample page when complete
+        const sha512 = await pollTaskStatus(result.task_id, result.filename);
+        
+        if (sha512) {
+          navigate(`/samples/${sha512}`);
+        } else {
+          alert('Sample uploaded and queued for processing. Check the Tasks page for status.');
+          navigate('/tasks');
+        }
       }
     } catch (error: any) {
       const errorMessage = error.response?.data?.detail || error.message || 'Upload failed';
@@ -328,7 +371,11 @@ const Upload: React.FC = () => {
                 onClick={handleUpload}
                 disabled={uploading}
               >
-                {uploading ? 'Uploading...' : files.length > 1 ? `Upload ${files.length} Samples` : 'Upload Sample'}
+                {uploading ? (
+                  files.length === 1 || uploadMode === 'url' ? 'Processing...' : 'Uploading...'
+                ) : (
+                  files.length > 1 ? `Upload ${files.length} Samples` : 'Upload Sample'
+                )}
               </button>
               <button
                 className="btn btn-secondary"

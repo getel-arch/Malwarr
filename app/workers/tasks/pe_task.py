@@ -118,6 +118,15 @@ def analyze_sample_with_pe(self, sha512: str) -> Dict[str, Any]:
             pe_analysis.signature_info = pe_metadata.get('signature_info')
             pe_analysis.analysis_date = datetime.utcnow()
             
+            # Update sample filename with internal name if available
+            internal_name = pe_metadata.get('internal_name')
+            if internal_name:
+                # Store the original uploaded filename in internal_name field
+                sample.internal_name = internal_name
+                # Use internal name as the display filename
+                sample.filename = internal_name
+                logger.info(f"Updated filename from '{sample.filename}' to internal name: '{internal_name}'")
+            
             sample.analysis_status = AnalysisStatus.COMPLETED
             self.db.commit()
 

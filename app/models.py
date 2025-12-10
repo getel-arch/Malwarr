@@ -42,6 +42,7 @@ class MalwareSample(Base):
     
     # File metadata
     filename = Column(String(255), nullable=False)
+    internal_name = Column(String(255))  # Internal name from file metadata (PE: InternalName/OriginalFilename, ELF: SONAME)
     file_size = Column(BigInteger, nullable=False)
     file_type = Column(Enum(FileType), nullable=False)
     mime_type = Column(String(100))

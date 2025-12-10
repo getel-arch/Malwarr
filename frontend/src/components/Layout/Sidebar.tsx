@@ -8,6 +8,7 @@ import {
   FaBars,
   FaChartBar,
   FaTasks,
+  FaSearch,
 } from 'react-icons/fa';
 import { useApp } from '../../contexts/AppContext';
 import './Sidebar.css';
@@ -48,6 +49,14 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
         >
           <FaBiohazard className="nav-icon" />
           {!collapsed && <span>Samples</span>}
+        </NavLink>
+
+        <NavLink 
+          to="/search" 
+          className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+        >
+          <FaSearch className="nav-icon" />
+          {!collapsed && <span>Search</span>}
         </NavLink>
 
         <NavLink 
