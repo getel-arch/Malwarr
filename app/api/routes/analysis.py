@@ -2,13 +2,29 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 import json
 import logging
 from pathlib import Path
 
 from app.api.dependencies import get_db, verify_api_key
-from app.models import MalwareSample, FileType, AnalysisStatus
+from app.models import (
+    MalwareSample, 
+    PEAnalysis, 
+    ELFAnalysis, 
+    MagikaAnalysis, 
+    CAPAAnalysis, 
+    VirusTotalAnalysis,
+    FileType, 
+    AnalysisStatus
+)
+from app.api.schemas.samples import (
+    PEAnalysisResponse,
+    ELFAnalysisResponse,
+    MagikaAnalysisResponse,
+    CAPAAnalysisResponse,
+    VirusTotalAnalysisResponse
+)
 from app.ingestion import IngestionService
 from app.storage import FileStorage
 from app.config import settings
@@ -229,19 +245,19 @@ async def get_capa_results(
     if not sample:
         raise HTTPException(status_code=404, detail="Sample not found")
     
-    if not sample.capa_analysis_date:
+    if not sample.capa_analysis or not sample.capa_analysis.analysis_date:
         raise HTTPException(status_code=404, detail="CAPA analysis not available for this sample")
     
-    # Parse JSON fields
-    capabilities = json.loads(sample.capa_capabilities) if sample.capa_capabilities else {}
-    attack = json.loads(sample.capa_attack) if sample.capa_attack else []
-    mbc = json.loads(sample.capa_mbc) if sample.capa_mbc else []
+    # Parse JSON fields from capa_analysis
+    capabilities = json.loads(sample.capa_analysis.capabilities) if sample.capa_analysis.capabilities else {}
+    attack = json.loads(sample.capa_analysis.attack) if sample.capa_analysis.attack else []
+    mbc = json.loads(sample.capa_analysis.mbc) if sample.capa_analysis.mbc else []
     
     return {
         "sha512": sha512,
         "filename": sample.filename,
-        "analysis_date": sample.capa_analysis_date,
-        "total_capabilities": sample.capa_total_capabilities,
+        "analysis_date": sample.capa_analysis.analysis_date,
+        "total_capabilities": sample.capa_analysis.total_capabilities,
         "capabilities": capabilities,
         "attack_techniques": attack,
         "mbc_objectives": mbc
@@ -263,11 +279,11 @@ async def get_capa_result_document(
     if not sample:
         raise HTTPException(status_code=404, detail="Sample not found")
     
-    if not sample.capa_result_document:
+    if not sample.capa_analysis or not sample.capa_analysis.result_document:
         raise HTTPException(status_code=404, detail="CAPA analysis not available for this sample")
     
     # Return the full result document
-    return json.loads(sample.capa_result_document)
+    return json.loads(sample.capa_analysis.result_document)
 
 
 @router.get("/{sha512}/capa/explorer")
@@ -286,7 +302,7 @@ async def serve_capa_explorer_with_data(
     if not sample:
         raise HTTPException(status_code=404, detail="Sample not found")
     
-    if not sample.capa_result_document:
+    if not sample.capa_analysis or not sample.capa_analysis.result_document:
         raise HTTPException(status_code=404, detail="CAPA analysis not available for this sample")
     
     # Check if local CAPA Explorer exists
@@ -303,7 +319,7 @@ async def serve_capa_explorer_with_data(
     html_content = index_path.read_text(encoding='utf-8')
     
     # Get the CAPA JSON data
-    capa_json_data = sample.capa_result_document
+    capa_json_data = sample.capa_analysis.result_document
     
     # Inject the JSON data into the HTML
     # CAPA Explorer looks for data in localStorage or can be passed via script
@@ -409,7 +425,7 @@ async def serve_capa_explorer_wrapped(
     if not sample:
         raise HTTPException(status_code=404, detail="Sample not found")
     
-    if not sample.capa_result_document:
+    if not sample.capa_analysis or not sample.capa_analysis.result_document:
         raise HTTPException(status_code=404, detail="CAPA analysis not available for this sample")
     
     # Check if local CAPA Explorer exists
@@ -468,7 +484,7 @@ async def download_capa_json(
     if not sample:
         raise HTTPException(status_code=404, detail="Sample not found")
     
-    if not sample.capa_result_document:
+    if not sample.capa_analysis or not sample.capa_analysis.result_document:
         raise HTTPException(status_code=404, detail="CAPA analysis not available for this sample")
     
     # Create a filename based on the sample
@@ -476,8 +492,70 @@ async def download_capa_json(
     
     # Return the JSON as a downloadable file
     return JSONResponse(
-        content=json.loads(sample.capa_result_document),
+        content=json.loads(sample.capa_analysis.result_document),
         headers={
             "Content-Disposition": f"attachment; filename={filename}"
         }
     )
+
+
+# ==================== Individual Analyzer Result Routes ====================
+
+@router.get("/{sha512}/analysis/pe", response_model=Optional[PEAnalysisResponse])
+async def get_pe_analysis(sha512: str, db: Session = Depends(get_db)):
+    """
+    Get PE analysis results for a specific sample
+    
+    Returns None if no PE analysis is available
+    """
+    pe_analysis = db.query(PEAnalysis).filter(PEAnalysis.sha512 == sha512).first()
+    
+    if not pe_analysis:
+        return None
+    
+    return pe_analysis
+
+
+@router.get("/{sha512}/analysis/elf", response_model=Optional[ELFAnalysisResponse])
+async def get_elf_analysis(sha512: str, db: Session = Depends(get_db)):
+    """
+    Get ELF analysis results for a specific sample
+    
+    Returns None if no ELF analysis is available
+    """
+    elf_analysis = db.query(ELFAnalysis).filter(ELFAnalysis.sha512 == sha512).first()
+    
+    if not elf_analysis:
+        return None
+    
+    return elf_analysis
+
+
+@router.get("/{sha512}/analysis/magika", response_model=Optional[MagikaAnalysisResponse])
+async def get_magika_analysis(sha512: str, db: Session = Depends(get_db)):
+    """
+    Get Magika file type detection results for a specific sample
+    
+    Returns None if no Magika analysis is available
+    """
+    magika_analysis = db.query(MagikaAnalysis).filter(MagikaAnalysis.sha512 == sha512).first()
+    
+    if not magika_analysis:
+        return None
+    
+    return magika_analysis
+
+
+@router.get("/{sha512}/analysis/virustotal", response_model=Optional[VirusTotalAnalysisResponse])
+async def get_virustotal_analysis(sha512: str, db: Session = Depends(get_db)):
+    """
+    Get VirusTotal scan results for a specific sample
+    
+    Returns None if no VirusTotal analysis is available
+    """
+    vt_analysis = db.query(VirusTotalAnalysis).filter(VirusTotalAnalysis.sha512 == sha512).first()
+    
+    if not vt_analysis:
+        return None
+    
+    return vt_analysis

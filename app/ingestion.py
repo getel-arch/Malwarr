@@ -3,7 +3,7 @@ import json
 from typing import Dict, Any, Optional, List, Tuple
 from pathlib import Path
 from datetime import datetime
-from app.models import MalwareSample, FileType, AnalysisStatus
+from app.models import MalwareSample, MagikaAnalysis, FileType, AnalysisStatus
 from app.utils import (
     calculate_hashes,
     get_file_type_from_magic,
@@ -12,8 +12,6 @@ from app.utils import (
     extract_strings,
     get_storage_path
 )
-from app.analyzers.pe.pe_analyzer import extract_pe_metadata
-from app.analyzers.elf.elf_analyzer import extract_elf_metadata
 from app.analyzers.magika.magika_analyzer import extract_magika_metadata
 from app.storage import FileStorage
 from app.archive_utils import is_archive, extract_archive
@@ -133,112 +131,36 @@ class IngestionService:
             tmp_path = tmp.name
         
         try:
-            if file_type == 'pe':
-                pe_metadata = extract_pe_metadata(tmp_path)
-                
-                # Basic PE metadata
-                sample.pe_imphash = pe_metadata.get('imphash')
-                if pe_metadata.get('compilation_timestamp'):
-                    from datetime import datetime
-                    sample.pe_compilation_timestamp = datetime.fromisoformat(
-                        pe_metadata['compilation_timestamp']
-                    )
-                sample.pe_entry_point = pe_metadata.get('entry_point')
-                sample.pe_sections = pe_metadata.get('sections')
-                sample.pe_imports = pe_metadata.get('imports')
-                sample.pe_exports = pe_metadata.get('exports')
-                
-                # PE Header information
-                sample.pe_machine = pe_metadata.get('machine')
-                sample.pe_number_of_sections = pe_metadata.get('number_of_sections')
-                sample.pe_characteristics = pe_metadata.get('characteristics')
-                sample.pe_magic = pe_metadata.get('magic')
-                sample.pe_image_base = pe_metadata.get('image_base')
-                sample.pe_subsystem = pe_metadata.get('subsystem')
-                sample.pe_dll_characteristics = pe_metadata.get('dll_characteristics')
-                sample.pe_checksum = pe_metadata.get('checksum')
-                sample.pe_size_of_image = pe_metadata.get('size_of_image')
-                sample.pe_size_of_headers = pe_metadata.get('size_of_headers')
-                sample.pe_base_of_code = pe_metadata.get('base_of_code')
-                
-                # PE Version information
-                sample.pe_linker_version = pe_metadata.get('linker_version')
-                sample.pe_os_version = pe_metadata.get('os_version')
-                sample.pe_image_version = pe_metadata.get('image_version')
-                sample.pe_subsystem_version = pe_metadata.get('subsystem_version')
-                
-                # PE Import/Export counts
-                sample.pe_import_dll_count = pe_metadata.get('import_dll_count')
-                sample.pe_imported_functions_count = pe_metadata.get('imported_functions_count')
-                sample.pe_export_count = pe_metadata.get('export_count')
-                
-                # PE Resources
-                sample.pe_resources = pe_metadata.get('resources')
-                sample.pe_resource_count = pe_metadata.get('resource_count')
-                
-                # PE Version info
-                sample.pe_version_info = pe_metadata.get('version_info')
-                
-                # PE Debug info
-                sample.pe_debug_info = pe_metadata.get('debug_info')
-                
-                # PE TLS
-                sample.pe_tls_info = pe_metadata.get('tls_info')
-                
-                # PE Rich header
-                sample.pe_rich_header = pe_metadata.get('rich_header')
-                
-                # PE Digital signature
-                sample.pe_is_signed = pe_metadata.get('is_signed', False)
-                sample.pe_signature_info = pe_metadata.get('signature_info')
-            
-            elif file_type == 'elf':
-                elf_metadata = extract_elf_metadata(tmp_path)
-                # Basic ELF fields
-                sample.elf_machine = elf_metadata.get('machine')
-                sample.elf_entry_point = elf_metadata.get('entry_point')
-                sample.elf_sections = elf_metadata.get('sections')
-                # Header information
-                sample.elf_file_class = elf_metadata.get('file_class')
-                sample.elf_data_encoding = elf_metadata.get('data_encoding')
-                sample.elf_os_abi = elf_metadata.get('os_abi')
-                sample.elf_abi_version = elf_metadata.get('abi_version')
-                sample.elf_type = elf_metadata.get('type')
-                sample.elf_version = elf_metadata.get('version')
-                sample.elf_flags = elf_metadata.get('flags')
-                sample.elf_header_size = elf_metadata.get('header_size')
-                sample.elf_program_header_offset = elf_metadata.get('program_header_offset')
-                sample.elf_section_header_offset = elf_metadata.get('section_header_offset')
-                sample.elf_program_header_entry_size = elf_metadata.get('program_header_entry_size')
-                sample.elf_program_header_count = elf_metadata.get('program_header_count')
-                sample.elf_section_header_entry_size = elf_metadata.get('section_header_entry_size')
-                sample.elf_section_header_count = elf_metadata.get('section_header_count')
-                sample.elf_section_count = elf_metadata.get('section_count')
-                # Program headers / segments
-                sample.elf_segments = elf_metadata.get('segments')
-                sample.elf_segment_count = elf_metadata.get('segment_count')
-                sample.elf_interpreter = elf_metadata.get('interpreter')
-                # Dynamic section
-                sample.elf_dynamic_tags = elf_metadata.get('dynamic_tags')
-                sample.elf_shared_libraries = elf_metadata.get('shared_libraries')
-                sample.elf_shared_library_count = elf_metadata.get('shared_library_count')
-                # Symbols
-                sample.elf_symbols = elf_metadata.get('symbols')
-                sample.elf_symbol_count = elf_metadata.get('symbol_count')
-                # Relocations
-                sample.elf_relocations = elf_metadata.get('relocations')
-                sample.elf_relocation_count = elf_metadata.get('relocation_count')
+            # PE and ELF analysis is now handled by async tasks
+            # Only run Magika analysis here during ingestion
             
             # Run Magika analysis for all file types
             try:
                 magika_metadata = extract_magika_metadata(tmp_path)
-                sample.magika_label = magika_metadata.get('label')
-                sample.magika_score = f"{magika_metadata.get('score'):.4f}" if magika_metadata.get('score') is not None else None
-                sample.magika_mime_type = magika_metadata.get('mime_type')
-                sample.magika_group = magika_metadata.get('group')
-                sample.magika_description = magika_metadata.get('description')
-                sample.magika_is_text = magika_metadata.get('is_text')
-                logger.info(f"Magika analysis completed: {sample.magika_label} (score: {sample.magika_score})")
+                
+                # Check if Magika analysis already exists
+                magika_analysis = db.query(MagikaAnalysis).filter(
+                    MagikaAnalysis.sha512 == sample.sha512
+                ).first()
+                
+                if not magika_analysis:
+                    # Create new Magika analysis record
+                    magika_analysis = MagikaAnalysis(
+                        sha512=sample.sha512,
+                        analysis_date=datetime.utcnow()
+                    )
+                    db.add(magika_analysis)
+                
+                # Update Magika analysis with results
+                magika_analysis.label = magika_metadata.get('label')
+                magika_analysis.score = f"{magika_metadata.get('score'):.4f}" if magika_metadata.get('score') is not None else None
+                magika_analysis.mime_type = magika_metadata.get('mime_type')
+                magika_analysis.group = magika_metadata.get('group')
+                magika_analysis.description = magika_metadata.get('description')
+                magika_analysis.is_text = magika_metadata.get('is_text')
+                magika_analysis.analysis_date = datetime.utcnow()
+                
+                logger.info(f"Magika analysis completed: {magika_analysis.label} (score: {magika_analysis.score})")
             except Exception as e:
                 logger.warning(f"Magika analysis failed: {e}")
                 # Continue even if Magika fails - not critical
@@ -275,7 +197,15 @@ class IngestionService:
                     logger.error(f"Failed to queue CAPA analysis: {e}")
                     sample.analysis_status = AnalysisStatus.FAILED
 
-            else:
+            # Queue VirusTotal analysis for all files
+            from app.workers.tasks import analyze_sample_with_virustotal
+            try:
+                task = analyze_sample_with_virustotal.delay(sample.sha512)
+                logger.info(f"VirusTotal analysis task queued: {task.id}")
+            except Exception as e:
+                logger.error(f"Failed to queue VirusTotal analysis: {e}")
+
+            if file_type not in ['pe', 'elf']:
                 # Mark as skipped for non-PE/ELF files
                 sample.analysis_status = AnalysisStatus.SKIPPED
                 

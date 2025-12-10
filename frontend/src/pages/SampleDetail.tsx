@@ -1,7 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FaDownload, FaTrash, FaEdit, FaSave, FaTimes, FaSearch, FaChevronDown, FaChevronRight } from 'react-icons/fa';
-import { malwarrApi, MalwareSample } from '../services/api';
+import { 
+  malwarrApi, 
+  MalwareSample, 
+  CAPAAnalysis,
+  PEAnalysis, 
+  ELFAnalysis, 
+  MagikaAnalysis, 
+  VirusTotalAnalysis 
+} from '../services/api';
 import './SampleDetail.css';
 
 // Collapsible Section Component
@@ -48,11 +56,34 @@ const SampleDetail: React.FC = () => {
   const [capaAnalyzing, setCapaAnalyzing] = useState(false);
   const [rescaning, setRescaning] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'analyzers' | 'relations'>('overview');
-  const [activeAnalyzerTab, setActiveAnalyzerTab] = useState<'capa' | 'pe' | 'elf' | 'magika'>('capa');
+  const [activeAnalyzerTab, setActiveAnalyzerTab] = useState<'capa' | 'pe' | 'elf' | 'magika' | 'virustotal'>('capa');
   const [relatedSamples, setRelatedSamples] = useState<{
     parentArchive?: MalwareSample;
     extractedFiles?: MalwareSample[];
   }>({});
+
+  // Analyzer results state
+  const [capaAnalysis, setCapaAnalysis] = useState<CAPAAnalysis | null>(null);
+  const [peAnalysis, setPeAnalysis] = useState<PEAnalysis | null>(null);
+  const [elfAnalysis, setElfAnalysis] = useState<ELFAnalysis | null>(null);
+  const [magikaAnalysis, setMagikaAnalysis] = useState<MagikaAnalysis | null>(null);
+  const [vtAnalysis, setVtAnalysis] = useState<VirusTotalAnalysis | null>(null);
+  const [analyzersLoading, setAnalyzersLoading] = useState(false);
+  
+  // Track which analyzer tabs are available
+  const [availableAnalyzers, setAvailableAnalyzers] = useState<{
+    capa: boolean;
+    pe: boolean;
+    elf: boolean;
+    magika: boolean;
+    virustotal: boolean;
+  }>({
+    capa: false,
+    pe: false,
+    elf: false,
+    magika: false,
+    virustotal: false,
+  });
 
   const formatSize = (bytes: number): string => {
     if (bytes === 0) return '0 B';
@@ -66,6 +97,7 @@ const SampleDetail: React.FC = () => {
     if (sha512) {
       loadSample();
       loadRelatedSamples();
+      loadAnalyzerResults();
     }
   }, [sha512]);
 
@@ -78,16 +110,68 @@ const SampleDetail: React.FC = () => {
     if (isAnalyzing) {
       const interval = setInterval(() => {
         loadSample();
+        loadAnalyzerResults();
       }, 5000); // Refresh every 5 seconds
 
       return () => clearInterval(interval);
     }
   }, [sample?.analysis_status]);
 
+  const loadAnalyzerResults = async () => {
+    if (!sha512) return;
+    
+    setAnalyzersLoading(true);
+    try {
+      // Load all analyzer results in parallel
+      const [capa, pe, elf, magika, vt] = await Promise.all([
+        malwarrApi.getCapaResults(sha512).catch(() => null),
+        malwarrApi.getPEAnalysis(sha512).catch(() => null),
+        malwarrApi.getELFAnalysis(sha512).catch(() => null),
+        malwarrApi.getMagikaAnalysis(sha512).catch(() => null),
+        malwarrApi.getVirusTotalAnalysis(sha512).catch(() => null),
+      ]);
+
+      setCapaAnalysis(capa);
+      setPeAnalysis(pe);
+      setElfAnalysis(elf);
+      setMagikaAnalysis(magika);
+      setVtAnalysis(vt);
+
+      // Update available analyzers and set default active tab
+      const available = {
+        capa: capa !== null,
+        pe: pe !== null,
+        elf: elf !== null,
+        magika: magika !== null,
+        virustotal: vt !== null,
+      };
+      
+      setAvailableAnalyzers(available);
+      
+      // Set the first available analyzer as active
+      if (available.capa) {
+        setActiveAnalyzerTab('capa');
+      } else if (available.pe) {
+        setActiveAnalyzerTab('pe');
+      } else if (available.elf) {
+        setActiveAnalyzerTab('elf');
+      } else if (available.magika) {
+        setActiveAnalyzerTab('magika');
+      } else if (available.virustotal) {
+        setActiveAnalyzerTab('virustotal');
+      }
+    } catch (error) {
+      console.error('Failed to load analyzer results:', error);
+    } finally {
+      setAnalyzersLoading(false);
+    }
+  };
+
   const loadSample = async () => {
     try {
       const data = await malwarrApi.getSample(sha512!);
       setSample(data);
+      
       setEditData({
         family: data.family || '',
         classification: data.classification || '',
@@ -414,13 +498,15 @@ const SampleDetail: React.FC = () => {
         <div className="analyzers-tab">
           {/* Analyzer Sub-tabs */}
           <div className="sub-tabs">
-            <button 
-              className={`sub-tab ${activeAnalyzerTab === 'capa' ? 'active' : ''}`}
-              onClick={() => setActiveAnalyzerTab('capa')}
-            >
-              CAPA
-            </button>
-            {sample.file_type === 'pe' && (
+            {availableAnalyzers.capa && (
+              <button 
+                className={`sub-tab ${activeAnalyzerTab === 'capa' ? 'active' : ''}`}
+                onClick={() => setActiveAnalyzerTab('capa')}
+              >
+                CAPA
+              </button>
+            )}
+            {availableAnalyzers.pe && (
               <button 
                 className={`sub-tab ${activeAnalyzerTab === 'pe' ? 'active' : ''}`}
                 onClick={() => setActiveAnalyzerTab('pe')}
@@ -428,7 +514,7 @@ const SampleDetail: React.FC = () => {
                 PE
               </button>
             )}
-            {sample.file_type === 'elf' && (
+            {availableAnalyzers.elf && (
               <button 
                 className={`sub-tab ${activeAnalyzerTab === 'elf' ? 'active' : ''}`}
                 onClick={() => setActiveAnalyzerTab('elf')}
@@ -436,31 +522,48 @@ const SampleDetail: React.FC = () => {
                 ELF
               </button>
             )}
-            <button 
-              className={`sub-tab ${activeAnalyzerTab === 'magika' ? 'active' : ''}`}
-              onClick={() => setActiveAnalyzerTab('magika')}
-            >
-              Magika
-            </button>
+            {availableAnalyzers.magika && (
+              <button 
+                className={`sub-tab ${activeAnalyzerTab === 'magika' ? 'active' : ''}`}
+                onClick={() => setActiveAnalyzerTab('magika')}
+              >
+                Magika
+              </button>
+            )}
+            {availableAnalyzers.virustotal && (
+              <button 
+                className={`sub-tab ${activeAnalyzerTab === 'virustotal' ? 'active' : ''}`}
+                onClick={() => setActiveAnalyzerTab('virustotal')}
+              >
+                VirusTotal
+              </button>
+            )}
           </div>
+
+          {/* Show loading state */}
+          {analyzersLoading && (
+            <div className="analyzer-content">
+              <div className="loading">Loading analyzer results...</div>
+            </div>
+          )}
 
           {/* CAPA Sub-tab Content */}
           {activeAnalyzerTab === 'capa' && (
             <div className="analyzer-content">
-              {sample.capa_capabilities ? (
+              {capaAnalysis && !analyzersLoading ? (
                 <div className="detail-section full-width">
                   <h3>CAPA Analysis Results</h3>
                   <div className="info-grid">
-                    {sample.capa_total_capabilities !== undefined && (
+                    {capaAnalysis.total_capabilities !== undefined && (
                       <div className="info-row">
                         <span className="label">Total Capabilities:</span>
-                        <span className="badge">{sample.capa_total_capabilities}</span>
+                        <span className="badge">{capaAnalysis.total_capabilities}</span>
                       </div>
                     )}
-                    {sample.capa_analysis_date && (
+                    {capaAnalysis.analysis_date && (
                       <div className="info-row">
                         <span className="label">Analysis Date:</span>
-                        <span>{new Date(sample.capa_analysis_date).toLocaleString()}</span>
+                        <span>{new Date(capaAnalysis.analysis_date).toLocaleString()}</span>
                       </div>
                     )}
                     <div className="info-row full-width">
@@ -509,126 +612,126 @@ const SampleDetail: React.FC = () => {
           )}
 
           {/* PE Analyzer Sub-tab Content */}
-          {activeAnalyzerTab === 'pe' && sample.file_type === 'pe' && (
+          {activeAnalyzerTab === 'pe' && peAnalysis && !analyzersLoading && (
             <div className="analyzer-content">
               <div className="detail-section full-width">
                 
                 {/* PE Header Information */}
                 <CollapsibleSection title="PE Header Information" defaultCollapsed={false}>
                   <div className="info-grid">
-                    {sample.pe_machine && (
+                    {peAnalysis.machine && (
                       <div className="info-row">
                         <span className="label">Machine Type:</span>
-                        <code>{sample.pe_machine}</code>
+                        <code>{peAnalysis.machine}</code>
                       </div>
                     )}
-                    {sample.pe_magic && (
+                    {peAnalysis.magic && (
                       <div className="info-row">
                         <span className="label">Magic (PE Type):</span>
-                        <code>{sample.pe_magic}</code>
+                        <code>{peAnalysis.magic}</code>
                       </div>
                     )}
-                    {sample.pe_subsystem && (
+                    {peAnalysis.subsystem && (
                       <div className="info-row">
                         <span className="label">Subsystem:</span>
-                        <code>{sample.pe_subsystem}</code>
+                        <code>{peAnalysis.subsystem}</code>
                       </div>
                     )}
-                    {sample.pe_compilation_timestamp && (
+                    {peAnalysis.compilation_timestamp && (
                       <div className="info-row">
                         <span className="label">Compilation Timestamp:</span>
-                        <span>{new Date(sample.pe_compilation_timestamp).toLocaleString()}</span>
+                        <span>{new Date(peAnalysis.compilation_timestamp).toLocaleString()}</span>
                       </div>
                     )}
-                    {sample.pe_entry_point && (
+                    {peAnalysis.entry_point && (
                       <div className="info-row">
                         <span className="label">Entry Point:</span>
-                        <code>{sample.pe_entry_point}</code>
+                        <code>{peAnalysis.entry_point}</code>
                       </div>
                     )}
-                    {sample.pe_image_base && (
+                    {peAnalysis.image_base && (
                       <div className="info-row">
                         <span className="label">Image Base:</span>
-                        <code>{sample.pe_image_base}</code>
+                        <code>{peAnalysis.image_base}</code>
                       </div>
                     )}
-                    {sample.pe_base_of_code && (
+                    {peAnalysis.base_of_code && (
                       <div className="info-row">
                         <span className="label">Base of Code:</span>
-                        <code>{sample.pe_base_of_code}</code>
+                        <code>{peAnalysis.base_of_code}</code>
                       </div>
                     )}
-                    {sample.pe_size_of_image && (
+                    {peAnalysis.size_of_image && (
                       <div className="info-row">
                         <span className="label">Size of Image:</span>
-                        <span>{sample.pe_size_of_image.toLocaleString()} bytes</span>
+                        <span>{peAnalysis.size_of_image.toLocaleString()} bytes</span>
                       </div>
                     )}
-                    {sample.pe_size_of_headers && (
+                    {peAnalysis.size_of_headers && (
                       <div className="info-row">
                         <span className="label">Size of Headers:</span>
-                        <span>{sample.pe_size_of_headers.toLocaleString()} bytes</span>
+                        <span>{peAnalysis.size_of_headers.toLocaleString()} bytes</span>
                       </div>
                     )}
-                    {sample.pe_number_of_sections !== undefined && (
+                    {peAnalysis.number_of_sections !== undefined && (
                       <div className="info-row">
                         <span className="label">Number of Sections:</span>
-                        <span>{sample.pe_number_of_sections}</span>
+                        <span>{peAnalysis.number_of_sections}</span>
                       </div>
                     )}
-                    {sample.pe_characteristics && (
+                    {peAnalysis.characteristics && (
                       <div className="info-row">
                         <span className="label">Characteristics:</span>
-                        <code>{sample.pe_characteristics}</code>
+                        <code>{peAnalysis.characteristics}</code>
                       </div>
                     )}
-                    {sample.pe_dll_characteristics && (
+                    {peAnalysis.dll_characteristics && (
                       <div className="info-row">
                         <span className="label">DLL Characteristics:</span>
-                        <code>{sample.pe_dll_characteristics}</code>
+                        <code>{peAnalysis.dll_characteristics}</code>
                       </div>
                     )}
-                    {sample.pe_checksum && (
+                    {peAnalysis.checksum && (
                       <div className="info-row">
                         <span className="label">Checksum:</span>
-                        <code>{sample.pe_checksum}</code>
+                        <code>{peAnalysis.checksum}</code>
                       </div>
                     )}
-                    {sample.pe_imphash && (
+                    {peAnalysis.imphash && (
                       <div className="info-row">
                         <span className="label">Import Hash (ImpHash):</span>
-                        <code>{sample.pe_imphash}</code>
+                        <code>{peAnalysis.imphash}</code>
                       </div>
                     )}
                   </div>
                 </CollapsibleSection>
 
                 {/* Version Information */}
-                {(sample.pe_linker_version || sample.pe_os_version || sample.pe_image_version || sample.pe_subsystem_version) && (
+                {(peAnalysis.linker_version || peAnalysis.os_version || peAnalysis.image_version || peAnalysis.subsystem_version) && (
                   <CollapsibleSection title="PE Version Information" defaultCollapsed={true}>
                     <div className="info-grid">
-                      {sample.pe_linker_version && (
+                      {peAnalysis.linker_version && (
                         <div className="info-row">
                           <span className="label">Linker Version:</span>
-                          <span>{sample.pe_linker_version}</span>
+                          <span>{peAnalysis.linker_version}</span>
                         </div>
                       )}
-                      {sample.pe_os_version && (
+                      {peAnalysis.os_version && (
                         <div className="info-row">
                           <span className="label">OS Version:</span>
-                          <span>{sample.pe_os_version}</span>
+                          <span>{peAnalysis.os_version}</span>
                         </div>
                       )}
-                      {sample.pe_image_version && (
+                      {peAnalysis.image_version && (
                         <div className="info-row">
                           <span className="label">Image Version:</span>
-                          <span>{sample.pe_image_version}</span>
+                          <span>{peAnalysis.image_version}</span>
                         </div>
                       )}
-                      {sample.pe_subsystem_version && (
+                      {peAnalysis.subsystem_version && (
                         <div className="info-row">
                           <span className="label">Subsystem Version:</span>
-                          <span>{sample.pe_subsystem_version}</span>
+                          <span>{peAnalysis.subsystem_version}</span>
                         </div>
                       )}
                     </div>
@@ -636,18 +739,18 @@ const SampleDetail: React.FC = () => {
                 )}
 
                 {/* Digital Signature */}
-                {(sample.pe_is_signed !== undefined) && (
+                {(peAnalysis.is_signed !== undefined) && (
                   <CollapsibleSection title="Digital Signature" defaultCollapsed={true}>
                     <div className="info-grid">
                       <div className="info-row">
                         <span className="label">Signed:</span>
-                        <span className={sample.pe_is_signed ? 'badge-success' : 'badge-warning'}>
-                          {sample.pe_is_signed ? 'Yes' : 'No'}
+                        <span className={peAnalysis.is_signed ? 'badge-success' : 'badge-warning'}>
+                          {peAnalysis.is_signed ? 'Yes' : 'No'}
                         </span>
                       </div>
-                      {sample.pe_signature_info && (() => {
+                      {peAnalysis.signature_info && (() => {
                         try {
-                          const sigInfo = JSON.parse(sample.pe_signature_info);
+                          const sigInfo = JSON.parse(peAnalysis.signature_info);
                           return (
                             <>
                               {sigInfo.present && (
@@ -667,9 +770,9 @@ const SampleDetail: React.FC = () => {
                 )}
 
                 {/* Sections */}
-                {sample.pe_sections && (() => {
+                {peAnalysis.sections && (() => {
                   try {
-                    const sections = JSON.parse(sample.pe_sections);
+                    const sections = JSON.parse(peAnalysis.sections);
                     return (
                       <CollapsibleSection title={`PE Sections (${sections.length})`} defaultCollapsed={true}>
                         <div className="table-container">
@@ -710,12 +813,12 @@ const SampleDetail: React.FC = () => {
                 })()}
 
                 {/* Imports */}
-                {sample.pe_imports && (() => {
+                {peAnalysis.imports && (() => {
                   try {
-                    const imports = JSON.parse(sample.pe_imports);
+                    const imports = JSON.parse(peAnalysis.imports);
                     return (
                       <CollapsibleSection 
-                        title={`PE Imports (${sample.pe_import_dll_count || imports.length} DLLs, ${sample.pe_imported_functions_count || 0} functions)`} 
+                        title={`PE Imports (${peAnalysis.import_dll_count || imports.length} DLLs, ${peAnalysis.imported_functions_count || 0} functions)`} 
                         defaultCollapsed={true}
                       >
                         <div className="imports-container">
@@ -739,13 +842,13 @@ const SampleDetail: React.FC = () => {
                 })()}
 
                 {/* Exports */}
-                {sample.pe_exports && (() => {
+                {peAnalysis.exports && (() => {
                   try {
-                    const exportData = JSON.parse(sample.pe_exports);
+                    const exportData = JSON.parse(peAnalysis.exports);
                     if (exportData.exports && exportData.exports.length > 0) {
                       return (
                         <CollapsibleSection 
-                          title={`PE Exports (${sample.pe_export_count || exportData.exports.length})`} 
+                          title={`PE Exports (${peAnalysis.export_count || exportData.exports.length})`} 
                           defaultCollapsed={true}
                         >
                           <div className="info-grid">
@@ -786,13 +889,13 @@ const SampleDetail: React.FC = () => {
                 })()}
 
                 {/* Resources */}
-                {sample.pe_resources && (() => {
+                {peAnalysis.resources && (() => {
                   try {
-                    const resources = JSON.parse(sample.pe_resources);
+                    const resources = JSON.parse(peAnalysis.resources);
                     if (resources.length > 0) {
                       return (
                         <CollapsibleSection 
-                          title={`PE Resources (${sample.pe_resource_count || resources.length})`} 
+                          title={`PE Resources (${peAnalysis.resource_count || resources.length})`} 
                           defaultCollapsed={true}
                         >
                           <div className="table-container">
@@ -829,9 +932,9 @@ const SampleDetail: React.FC = () => {
                 })()}
 
                 {/* Version Info */}
-                {sample.pe_version_info && (() => {
+                {peAnalysis.version_info && (() => {
                   try {
-                    const versionInfo = JSON.parse(sample.pe_version_info);
+                    const versionInfo = JSON.parse(peAnalysis.version_info);
                     const entries = Object.entries(versionInfo);
                     if (entries.length > 0) {
                       return (
@@ -965,110 +1068,110 @@ const SampleDetail: React.FC = () => {
           )}
 
           {/* ELF Analyzer Sub-tab Content */}
-          {activeAnalyzerTab === 'elf' && sample.file_type === 'elf' && (
+          {activeAnalyzerTab === 'elf' && elfAnalysis && !analyzersLoading && (
             <div className="analyzer-content">
               <div className="detail-section full-width">
                 
                 {/* ELF Header Information */}
                 <CollapsibleSection title="ELF Header Information" defaultCollapsed={false}>
                   <div className="info-grid">
-                    {sample.elf_machine && (
+                    {elfAnalysis.machine && (
                       <div className="info-row">
                         <span className="label">Machine Type:</span>
-                        <code>{sample.elf_machine}</code>
+                        <code>{elfAnalysis.machine}</code>
                       </div>
                     )}
-                    {sample.elf_type && (
+                    {elfAnalysis.elf_type && (
                       <div className="info-row">
                         <span className="label">ELF Type:</span>
-                        <code>{sample.elf_type}</code>
+                        <code>{elfAnalysis.elf_type}</code>
                       </div>
                     )}
-                    {sample.elf_entry_point && (
+                    {elfAnalysis.entry_point && (
                       <div className="info-row">
                         <span className="label">Entry Point:</span>
-                        <code>{sample.elf_entry_point}</code>
+                        <code>{elfAnalysis.entry_point}</code>
                       </div>
                     )}
-                    {sample.elf_file_class && (
+                    {elfAnalysis.file_class && (
                       <div className="info-row">
                         <span className="label">File Class:</span>
-                        <code>{sample.elf_file_class}</code>
+                        <code>{elfAnalysis.file_class}</code>
                       </div>
                     )}
-                    {sample.elf_data_encoding && (
+                    {elfAnalysis.data_encoding && (
                       <div className="info-row">
                         <span className="label">Data Encoding:</span>
-                        <code>{sample.elf_data_encoding}</code>
+                        <code>{elfAnalysis.data_encoding}</code>
                       </div>
                     )}
-                    {sample.elf_os_abi && (
+                    {elfAnalysis.os_abi && (
                       <div className="info-row">
                         <span className="label">OS/ABI:</span>
-                        <code>{sample.elf_os_abi}</code>
+                        <code>{elfAnalysis.os_abi}</code>
                       </div>
                     )}
-                    {sample.elf_abi_version !== undefined && (
+                    {elfAnalysis.abi_version !== undefined && (
                       <div className="info-row">
                         <span className="label">ABI Version:</span>
-                        <span>{sample.elf_abi_version}</span>
+                        <span>{elfAnalysis.abi_version}</span>
                       </div>
                     )}
-                    {sample.elf_version && (
+                    {elfAnalysis.version && (
                       <div className="info-row">
                         <span className="label">ELF Version:</span>
-                        <span>{sample.elf_version}</span>
+                        <span>{elfAnalysis.version}</span>
                       </div>
                     )}
-                    {sample.elf_flags && (
+                    {elfAnalysis.flags && (
                       <div className="info-row">
                         <span className="label">Flags:</span>
-                        <code>{sample.elf_flags}</code>
+                        <code>{elfAnalysis.flags}</code>
                       </div>
                     )}
-                    {sample.elf_header_size && (
+                    {elfAnalysis.header_size && (
                       <div className="info-row">
                         <span className="label">Header Size:</span>
-                        <span>{sample.elf_header_size} bytes</span>
+                        <span>{elfAnalysis.header_size} bytes</span>
                       </div>
                     )}
-                    {sample.elf_program_header_offset && (
+                    {elfAnalysis.program_header_offset && (
                       <div className="info-row">
                         <span className="label">Program Header Offset:</span>
-                        <code>{sample.elf_program_header_offset}</code>
+                        <code>{elfAnalysis.program_header_offset}</code>
                       </div>
                     )}
-                    {sample.elf_section_header_offset && (
+                    {elfAnalysis.section_header_offset && (
                       <div className="info-row">
                         <span className="label">Section Header Offset:</span>
-                        <code>{sample.elf_section_header_offset}</code>
+                        <code>{elfAnalysis.section_header_offset}</code>
                       </div>
                     )}
-                    {sample.elf_program_header_count !== undefined && (
+                    {elfAnalysis.program_header_count !== undefined && (
                       <div className="info-row">
                         <span className="label">Program Headers:</span>
-                        <span>{sample.elf_program_header_count}</span>
+                        <span>{elfAnalysis.program_header_count}</span>
                       </div>
                     )}
-                    {sample.elf_section_header_count !== undefined && (
+                    {elfAnalysis.section_header_count !== undefined && (
                       <div className="info-row">
                         <span className="label">Section Headers:</span>
-                        <span>{sample.elf_section_header_count}</span>
+                        <span>{elfAnalysis.section_header_count}</span>
                       </div>
                     )}
-                    {sample.elf_interpreter && (
+                    {elfAnalysis.interpreter && (
                       <div className="info-row">
                         <span className="label">Interpreter:</span>
-                        <code>{sample.elf_interpreter}</code>
+                        <code>{elfAnalysis.interpreter}</code>
                       </div>
                     )}
                   </div>
                 </CollapsibleSection>
 
                 {/* Program Headers / Segments */}
-                {sample.elf_segments && (() => {
+                {elfAnalysis.segments && (() => {
                   try {
-                    const segments = JSON.parse(sample.elf_segments);
+                    const segments = JSON.parse(elfAnalysis.segments);
                     return (
                       <CollapsibleSection title={`ELF Program Headers (${segments.length})`} defaultCollapsed={true}>
                         <div className="table-container">
@@ -1109,9 +1212,9 @@ const SampleDetail: React.FC = () => {
                 })()}
 
                 {/* Sections */}
-                {sample.elf_sections && (() => {
+                {elfAnalysis.sections && (() => {
                   try {
-                    const sections = JSON.parse(sample.elf_sections);
+                    const sections = JSON.parse(elfAnalysis.sections);
                     return (
                       <CollapsibleSection title={`ELF Sections (${sections.length})`} defaultCollapsed={true}>
                         <div className="table-container">
@@ -1154,13 +1257,13 @@ const SampleDetail: React.FC = () => {
                 })()}
 
                 {/* Shared Libraries */}
-                {sample.elf_shared_libraries && (() => {
+                {elfAnalysis.shared_libraries && (() => {
                   try {
-                    const libraries = JSON.parse(sample.elf_shared_libraries);
+                    const libraries = JSON.parse(elfAnalysis.shared_libraries);
                     if (libraries.length > 0) {
                       return (
                         <CollapsibleSection 
-                          title={`Shared Libraries (${sample.elf_shared_library_count || libraries.length})`} 
+                          title={`Shared Libraries (${elfAnalysis.shared_library_count || libraries.length})`} 
                           defaultCollapsed={true}
                         >
                           <div className="imports-container">
@@ -1178,13 +1281,13 @@ const SampleDetail: React.FC = () => {
                 })()}
 
                 {/* Symbols */}
-                {sample.elf_symbols && (() => {
+                {elfAnalysis.symbols && (() => {
                   try {
-                    const symbols = JSON.parse(sample.elf_symbols);
+                    const symbols = JSON.parse(elfAnalysis.symbols);
                     if (symbols.length > 0) {
                       return (
                         <CollapsibleSection 
-                          title={`Symbols (${sample.elf_symbol_count || symbols.length}${sample.elf_symbol_count && sample.elf_symbol_count >= 500 ? '+' : ''})`} 
+                          title={`Symbols (${elfAnalysis.symbol_count || symbols.length}${elfAnalysis.symbol_count && elfAnalysis.symbol_count >= 500 ? '+' : ''})`} 
                           defaultCollapsed={true}
                         >
                           <div className="table-container">
@@ -1213,7 +1316,7 @@ const SampleDetail: React.FC = () => {
                               </tbody>
                             </table>
                           </div>
-                          {sample.elf_symbol_count && sample.elf_symbol_count >= 500 && (
+                          {elfAnalysis.symbol_count && elfAnalysis.symbol_count >= 500 && (
                             <p className="note">Note: Showing first 500 symbols only</p>
                           )}
                         </CollapsibleSection>
@@ -1226,13 +1329,13 @@ const SampleDetail: React.FC = () => {
                 })()}
 
                 {/* Relocations */}
-                {sample.elf_relocations && (() => {
+                {elfAnalysis.relocations && (() => {
                   try {
-                    const relocations = JSON.parse(sample.elf_relocations);
+                    const relocations = JSON.parse(elfAnalysis.relocations);
                     if (relocations.length > 0) {
                       return (
                         <CollapsibleSection 
-                          title={`Relocations (${sample.elf_relocation_count || relocations.length}${sample.elf_relocation_count && sample.elf_relocation_count >= 200 ? '+' : ''})`} 
+                          title={`Relocations (${elfAnalysis.relocation_count || relocations.length}${elfAnalysis.relocation_count && elfAnalysis.relocation_count >= 200 ? '+' : ''})`} 
                           defaultCollapsed={true}
                         >
                           <div className="table-container">
@@ -1255,7 +1358,7 @@ const SampleDetail: React.FC = () => {
                               </tbody>
                             </table>
                           </div>
-                          {sample.elf_relocation_count && sample.elf_relocation_count >= 200 && (
+                          {elfAnalysis.relocation_count && elfAnalysis.relocation_count >= 200 && (
                             <p className="note">Note: Showing first 200 relocations only</p>
                           )}
                         </CollapsibleSection>
@@ -1268,9 +1371,9 @@ const SampleDetail: React.FC = () => {
                 })()}
 
                 {/* Dynamic Tags */}
-                {sample.elf_dynamic_tags && (() => {
+                {elfAnalysis.dynamic_tags && (() => {
                   try {
-                    const dynamicTags = JSON.parse(sample.elf_dynamic_tags);
+                    const dynamicTags = JSON.parse(elfAnalysis.dynamic_tags);
                     if (dynamicTags.length > 0) {
                       return (
                         <CollapsibleSection title={`Dynamic Tags (${dynamicTags.length})`} defaultCollapsed={true}>
@@ -1301,58 +1404,159 @@ const SampleDetail: React.FC = () => {
                   }
                 })()}
 
-                {/* Show message if no ELF data available */}
-                {!sample.elf_sections && !sample.elf_machine && !sample.elf_entry_point && (
-                  <p>No ELF analysis data available for this sample.</p>
-                )}
               </div>
             </div>
           )}
 
           {/* Magika Sub-tab Content */}
-          {activeAnalyzerTab === 'magika' && (
+          {activeAnalyzerTab === 'magika' && magikaAnalysis && !analyzersLoading && (
             <div className="analyzer-content">
               <div className="detail-section full-width">
                 <h3>Magika AI File Type Detection</h3>
-                {sample.magika_label ? (
+                <div className="info-grid">
+                  <div className="info-row">
+                    <span className="label">Detected Type:</span>
+                    <code className="highlight">{magikaAnalysis.label}</code>
+                  </div>
+                  {magikaAnalysis.score && (
+                    <div className="info-row">
+                      <span className="label">Confidence Score:</span>
+                      <code>{(parseFloat(magikaAnalysis.score) * 100).toFixed(2)}%</code>
+                    </div>
+                  )}
+                  {magikaAnalysis.mime_type && (
+                    <div className="info-row">
+                      <span className="label">MIME Type:</span>
+                      <code>{magikaAnalysis.mime_type}</code>
+                    </div>
+                  )}
+                  {magikaAnalysis.group && (
+                    <div className="info-row">
+                      <span className="label">File Group:</span>
+                      <code>{magikaAnalysis.group}</code>
+                    </div>
+                  )}
+                  {magikaAnalysis.is_text !== null && magikaAnalysis.is_text !== undefined && (
+                    <div className="info-row">
+                      <span className="label">Text-based File:</span>
+                      <code>{magikaAnalysis.is_text ? 'Yes' : 'No'}</code>
+                    </div>
+                  )}
+                  {magikaAnalysis.description && (
+                    <div className="info-row">
+                      <span className="label">Description:</span>
+                      <code>{magikaAnalysis.description}</code>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* VirusTotal Sub-tab Content */}
+          {activeAnalyzerTab === 'virustotal' && vtAnalysis && !analyzersLoading && (
+            <div className="analyzer-content">
+              <div className="detail-section full-width">
+                <h3>VirusTotal Analysis</h3>
+                {vtAnalysis.positives !== null && vtAnalysis.positives !== undefined ? (
                   <div className="info-grid">
                     <div className="info-row">
-                      <span className="label">Detected Type:</span>
-                      <code className="highlight">{sample.magika_label}</code>
+                      <span className="label">Detection Ratio:</span>
+                      <span className={`badge ${vtAnalysis.positives > 0 ? 'badge-danger' : 'badge-success'}`}>
+                        {vtAnalysis.detection_ratio || `${vtAnalysis.positives}/${vtAnalysis.total}`}
+                      </span>
                     </div>
-                    {sample.magika_score && (
+                    {vtAnalysis.scan_date && (
                       <div className="info-row">
-                        <span className="label">Confidence Score:</span>
-                        <code>{(parseFloat(sample.magika_score) * 100).toFixed(2)}%</code>
+                        <span className="label">VT Scan Date:</span>
+                        <span>{new Date(vtAnalysis.scan_date).toLocaleString()}</span>
                       </div>
                     )}
-                    {sample.magika_mime_type && (
+                    {vtAnalysis.analysis_date && (
                       <div className="info-row">
-                        <span className="label">MIME Type:</span>
-                        <code>{sample.magika_mime_type}</code>
+                        <span className="label">Analysis Date:</span>
+                        <span>{new Date(vtAnalysis.analysis_date).toLocaleString()}</span>
                       </div>
                     )}
-                    {sample.magika_group && (
+                    {vtAnalysis.permalink && (
                       <div className="info-row">
-                        <span className="label">File Group:</span>
-                        <code>{sample.magika_group}</code>
+                        <span className="label">VirusTotal Link:</span>
+                        <a href={vtAnalysis.permalink} target="_blank" rel="noopener noreferrer" className="external-link">
+                          View Full Report
+                        </a>
                       </div>
                     )}
-                    {sample.magika_is_text !== null && sample.magika_is_text !== undefined && (
+                    {vtAnalysis.verbose_msg && (
                       <div className="info-row">
-                        <span className="label">Text-based File:</span>
-                        <code>{sample.magika_is_text ? 'Yes' : 'No'}</code>
-                      </div>
-                    )}
-                    {sample.magika_description && (
-                      <div className="info-row">
-                        <span className="label">Description:</span>
-                        <code>{sample.magika_description}</code>
+                        <span className="label">Status:</span>
+                        <code>{vtAnalysis.verbose_msg}</code>
                       </div>
                     )}
                   </div>
                 ) : (
-                  <p>No Magika analysis data available for this sample.</p>
+                  <p>No VirusTotal data available for this sample. {vtAnalysis.verbose_msg || 'The file may not be in VirusTotal database.'}</p>
+                )}
+
+                {/* Individual Scanner Results */}
+                {vtAnalysis.scans && (
+                  <div style={{ marginTop: '30px' }}>
+                    <CollapsibleSection title="Scanner Results" defaultCollapsed={true}>
+                      <div className="scanner-results">
+                        <table className="scanner-table">
+                          <thead>
+                            <tr>
+                              <th>Scanner</th>
+                              <th>Detected</th>
+                              <th>Result</th>
+                              <th>Category</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(() => {
+                              try {
+                                const scans = JSON.parse(vtAnalysis.scans);
+                                // Filter out timeout and type-unsupported categories, then sort
+                                const filteredEntries = Object.entries(scans).filter(([scanner, data]: [string, any]) => {
+                                  return data.category !== 'timeout' && data.category !== 'type-unsupported';
+                                });
+                                
+                                // Sort entries: detected first, then alphabetically by engine name
+                                const sortedEntries = filteredEntries.sort(([scannerA, dataA]: [string, any], [scannerB, dataB]: [string, any]) => {
+                                  // First sort by detection status (detected = true comes first)
+                                  if (dataA.detected !== dataB.detected) {
+                                    return dataA.detected ? -1 : 1;
+                                  }
+                                  // Then sort alphabetically by engine name
+                                  const nameA = (dataA.engine_name || scannerA).toLowerCase();
+                                  const nameB = (dataB.engine_name || scannerB).toLowerCase();
+                                  return nameA.localeCompare(nameB);
+                                });
+                                
+                                return sortedEntries.map(([scanner, data]: [string, any]) => (
+                                  <tr key={scanner} className={data.detected ? 'detected' : ''}>
+                                    <td>{data.engine_name || scanner}</td>
+                                    <td>
+                                      <span className={`badge ${data.detected ? 'badge-danger' : 'badge-success'}`}>
+                                        {data.detected ? 'Yes' : 'No'}
+                                      </span>
+                                    </td>
+                                    <td>{data.result || '-'}</td>
+                                    <td>{data.category || '-'}</td>
+                                  </tr>
+                                ));
+                              } catch (e) {
+                                return (
+                                  <tr>
+                                    <td colSpan={4}>Error parsing scanner results</td>
+                                  </tr>
+                                );
+                              }
+                            })()}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CollapsibleSection>
+                  </div>
                 )}
               </div>
             </div>

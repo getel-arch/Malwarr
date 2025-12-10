@@ -8,10 +8,12 @@ from .pe_task import analyze_sample_with_pe
 from .elf_task import analyze_sample_with_elf
 from .capa_task import analyze_sample_with_capa
 from .ingestion_task import ingest_file_task
+from .vt_task import analyze_sample_with_virustotal
 
 __all__ = [
 	"analyze_sample_with_pe",
 	"analyze_sample_with_elf",
 	"analyze_sample_with_capa",
 	"ingest_file_task",
+	"analyze_sample_with_virustotal",
 ]

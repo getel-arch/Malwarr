@@ -1,7 +1,7 @@
 """Sample management routes - CRUD operations for malware samples"""
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Query, Form
 from fastapi.responses import StreamingResponse, JSONResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_
 from typing import List, Optional
 import json
@@ -248,7 +248,13 @@ async def list_samples(
     - **family**: Filter by malware family
     - **tag**: Filter by tag
     """
-    query = db.query(MalwareSample)
+    query = db.query(MalwareSample).options(
+        joinedload(MalwareSample.pe_analysis),
+        joinedload(MalwareSample.elf_analysis),
+        joinedload(MalwareSample.magika_analysis),
+        joinedload(MalwareSample.capa_analysis),
+        joinedload(MalwareSample.virustotal_analysis)
+    )
     
     if file_type:
         query = query.filter(MalwareSample.file_type == file_type)
@@ -275,7 +281,13 @@ async def search_samples(
     """
     query_lower = q.lower()
     
-    samples = db.query(MalwareSample).filter(
+    samples = db.query(MalwareSample).options(
+        joinedload(MalwareSample.pe_analysis),
+        joinedload(MalwareSample.elf_analysis),
+        joinedload(MalwareSample.magika_analysis),
+        joinedload(MalwareSample.capa_analysis),
+        joinedload(MalwareSample.virustotal_analysis)
+    ).filter(
         or_(
             MalwareSample.sha512 == query_lower,
             MalwareSample.sha256 == query_lower,
@@ -292,7 +304,13 @@ async def search_samples(
 @router.get("/{sha512}", response_model=MalwareSampleResponse)
 async def get_sample_metadata(sha512: str, db: Session = Depends(get_db)):
     """Get metadata for a specific sample by SHA512 hash"""
-    sample = db.query(MalwareSample).filter(MalwareSample.sha512 == sha512).first()
+    sample = db.query(MalwareSample).options(
+        joinedload(MalwareSample.pe_analysis),
+        joinedload(MalwareSample.elf_analysis),
+        joinedload(MalwareSample.magika_analysis),
+        joinedload(MalwareSample.capa_analysis),
+        joinedload(MalwareSample.virustotal_analysis)
+    ).filter(MalwareSample.sha512 == sha512).first()
     
     if not sample:
         raise HTTPException(status_code=404, detail="Sample not found")
