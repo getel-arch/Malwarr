@@ -2,7 +2,7 @@
 Malwarr version information
 """
 
-__version__ = "0.5.3"
+__version__ = "0.5.4"
 __version_info__ = tuple(int(i) for i in __version__.split("."))
 
 # Application metadata
