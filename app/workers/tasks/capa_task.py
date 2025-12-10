@@ -4,7 +4,7 @@ import tempfile
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any
-from app.models import MalwareSample, FileType, AnalysisStatus
+from app.models import MalwareSample, CAPAAnalysis, FileType, AnalysisStatus
 from app.workers.tasks.database_task import DatabaseTask
 from app.workers.celery_app import celery_app
 
@@ -71,24 +71,38 @@ def analyze_sample_with_capa(self, sha512: str) -> Dict[str, Any]:
             capa_result = self.capa_analyzer.analyze_file(tmp_path)
 
             if capa_result.get("success"):
-                # Update sample with CAPA results
-                sample.capa_capabilities = json.dumps(capa_result.get("capabilities", {}))
-                sample.capa_attack = json.dumps(capa_result.get("attack", []))
-                sample.capa_mbc = json.dumps(capa_result.get("mbc", []))
-                sample.capa_result_document = json.dumps(capa_result.get("result_document", {}))
-                sample.capa_analysis_date = datetime.utcnow()
-                sample.capa_total_capabilities = sum(
+                # Check if CAPA analysis already exists
+                capa_analysis = self.db.query(CAPAAnalysis).filter(
+                    CAPAAnalysis.sha512 == sha512
+                ).first()
+                
+                if not capa_analysis:
+                    # Create new CAPA analysis record
+                    capa_analysis = CAPAAnalysis(
+                        sha512=sha512,
+                        analysis_date=datetime.utcnow()
+                    )
+                    self.db.add(capa_analysis)
+                
+                # Update CAPA analysis with results
+                capa_analysis.capabilities = json.dumps(capa_result.get("capabilities", {}))
+                capa_analysis.attack = json.dumps(capa_result.get("attack", []))
+                capa_analysis.mbc = json.dumps(capa_result.get("mbc", []))
+                capa_analysis.result_document = json.dumps(capa_result.get("result_document", {}))
+                capa_analysis.total_capabilities = sum(
                     capa_result.get("namespace_counts", {}).values()
                 )
+                capa_analysis.analysis_date = datetime.utcnow()
+                
                 sample.analysis_status = AnalysisStatus.COMPLETED
 
                 self.db.commit()
 
-                logger.info(f"CAPA analysis completed: {sample.capa_total_capabilities} capabilities detected")
+                logger.info(f"CAPA analysis completed: {capa_analysis.total_capabilities} capabilities detected")
                 return {
                     "success": True,
                     "sha512": sha512,
-                    "capabilities_count": sample.capa_total_capabilities
+                    "capabilities_count": capa_analysis.total_capabilities
                 }
             else:
                 error_msg = capa_result.get('error', 'Unknown error')

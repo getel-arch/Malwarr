@@ -105,6 +105,19 @@ Set via environment variables in `.env`:
 - `DATABASE_URL`: Database connection (default: PostgreSQL in Docker)
 - `STORAGE_PATH`: Sample storage path (default: `/data/samples`)
 - `API_KEY`: API authentication key (required)
+- `VIRUSTOTAL_API_KEY`: VirusTotal API key for hash lookups (optional, get from https://www.virustotal.com/gui/my-apikey)
+
+### VirusTotal Integration
+
+To enable VirusTotal analysis:
+
+1. Sign up for a VirusTotal account at https://www.virustotal.com
+2. Get your API key from https://www.virustotal.com/gui/my-apikey
+3. Set the `VIRUSTOTAL_API_KEY` environment variable in `.env`
+4. Restart the application
+5. VT analysis will automatically run for all uploaded samples
+
+Note: The free VirusTotal API has rate limits. VT analysis only checks file hashes (no file upload).
 
 ## License
 

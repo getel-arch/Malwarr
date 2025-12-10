@@ -6,6 +6,125 @@ from app.models import FileType
 import json
 
 
+class PEAnalysisResponse(BaseModel):
+    """Schema for PE analysis results"""
+    imphash: Optional[str]
+    compilation_timestamp: Optional[datetime]
+    entry_point: Optional[str]
+    sections: Optional[str]
+    imports: Optional[str]
+    exports: Optional[str]
+    machine: Optional[str]
+    number_of_sections: Optional[int]
+    characteristics: Optional[str]
+    magic: Optional[str]
+    image_base: Optional[str]
+    subsystem: Optional[str]
+    dll_characteristics: Optional[str]
+    checksum: Optional[str]
+    size_of_image: Optional[int]
+    size_of_headers: Optional[int]
+    base_of_code: Optional[str]
+    linker_version: Optional[str]
+    os_version: Optional[str]
+    image_version: Optional[str]
+    subsystem_version: Optional[str]
+    import_dll_count: Optional[int]
+    imported_functions_count: Optional[int]
+    export_count: Optional[int]
+    resources: Optional[str]
+    resource_count: Optional[int]
+    version_info: Optional[str]
+    debug_info: Optional[str]
+    tls_info: Optional[str]
+    rich_header: Optional[str]
+    is_signed: Optional[bool]
+    signature_info: Optional[str]
+    analysis_date: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class ELFAnalysisResponse(BaseModel):
+    """Schema for ELF analysis results"""
+    machine: Optional[str]
+    entry_point: Optional[str]
+    file_class: Optional[str]
+    data_encoding: Optional[str]
+    os_abi: Optional[str]
+    abi_version: Optional[int]
+    elf_type: Optional[str]
+    version: Optional[str]
+    flags: Optional[str]
+    header_size: Optional[int]
+    program_header_offset: Optional[str]
+    section_header_offset: Optional[str]
+    program_header_entry_size: Optional[int]
+    program_header_count: Optional[int]
+    section_header_entry_size: Optional[int]
+    section_header_count: Optional[int]
+    sections: Optional[str]
+    section_count: Optional[int]
+    segments: Optional[str]
+    segment_count: Optional[int]
+    interpreter: Optional[str]
+    dynamic_tags: Optional[str]
+    shared_libraries: Optional[str]
+    shared_library_count: Optional[int]
+    symbols: Optional[str]
+    symbol_count: Optional[int]
+    relocations: Optional[str]
+    relocation_count: Optional[int]
+    analysis_date: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class MagikaAnalysisResponse(BaseModel):
+    """Schema for Magika analysis results"""
+    label: Optional[str]
+    score: Optional[str]
+    mime_type: Optional[str]
+    group: Optional[str]
+    description: Optional[str]
+    is_text: Optional[bool]
+    analysis_date: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class CAPAAnalysisResponse(BaseModel):
+    """Schema for CAPA analysis results"""
+    capabilities: Optional[str]
+    attack: Optional[str]
+    mbc: Optional[str]
+    result_document: Optional[str]
+    total_capabilities: Optional[int]
+    analysis_date: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class VirusTotalAnalysisResponse(BaseModel):
+    """Schema for VirusTotal analysis results"""
+    positives: Optional[int]
+    total: Optional[int]
+    scan_date: Optional[datetime]
+    permalink: Optional[str]
+    scans: Optional[str]
+    detection_ratio: Optional[str]
+    scan_id: Optional[str]
+    verbose_msg: Optional[str]
+    analysis_date: datetime
+    
+    class Config:
+        from_attributes = True
+
+
 class MalwareSampleBase(BaseModel):
     """Base schema for malware sample"""
     filename: str
@@ -60,102 +179,14 @@ class MalwareSampleResponse(MalwareSampleBase):
     # Source information
     source_url: Optional[str]
     
-    # PE metadata
-    pe_imphash: Optional[str]
-    pe_compilation_timestamp: Optional[datetime]
-    pe_entry_point: Optional[str]
-    pe_sections: Optional[str]
-    pe_imports: Optional[str]
-    pe_exports: Optional[str]
+    # Analysis results from separate tables
+    pe_analysis: Optional[PEAnalysisResponse] = None
+    elf_analysis: Optional[ELFAnalysisResponse] = None
+    magika_analysis: Optional[MagikaAnalysisResponse] = None
+    capa_analysis: Optional[CAPAAnalysisResponse] = None
+    virustotal_analysis: Optional[VirusTotalAnalysisResponse] = None
     
-    # PE Header information
-    pe_machine: Optional[str]
-    pe_number_of_sections: Optional[int]
-    pe_characteristics: Optional[str]
-    pe_magic: Optional[str]
-    pe_image_base: Optional[str]
-    pe_subsystem: Optional[str]
-    pe_dll_characteristics: Optional[str]
-    pe_checksum: Optional[str]
-    pe_size_of_image: Optional[int]
-    pe_size_of_headers: Optional[int]
-    pe_base_of_code: Optional[str]
-    
-    # PE Version information
-    pe_linker_version: Optional[str]
-    pe_os_version: Optional[str]
-    pe_image_version: Optional[str]
-    pe_subsystem_version: Optional[str]
-    
-    # PE Import/Export counts
-    pe_import_dll_count: Optional[int]
-    pe_imported_functions_count: Optional[int]
-    pe_export_count: Optional[int]
-    
-    # PE Resources
-    pe_resources: Optional[str]
-    pe_resource_count: Optional[int]
-    
-    # PE Version info
-    pe_version_info: Optional[str]
-    
-    # PE Debug info
-    pe_debug_info: Optional[str]
-    
-    # PE TLS
-    pe_tls_info: Optional[str]
-    
-    # PE Rich header
-    pe_rich_header: Optional[str]
-    
-    # PE Digital signature
-    pe_is_signed: Optional[bool]
-    pe_signature_info: Optional[str]
-    
-    # ELF metadata
-    elf_machine: Optional[str]
-    elf_entry_point: Optional[str]
-    elf_file_class: Optional[str]
-    elf_data_encoding: Optional[str]
-    elf_os_abi: Optional[str]
-    elf_abi_version: Optional[int]
-    elf_type: Optional[str]
-    elf_version: Optional[str]
-    elf_flags: Optional[str]
-    elf_header_size: Optional[int]
-    elf_program_header_offset: Optional[str]
-    elf_section_header_offset: Optional[str]
-    elf_program_header_entry_size: Optional[int]
-    elf_program_header_count: Optional[int]
-    elf_section_header_entry_size: Optional[int]
-    elf_section_header_count: Optional[int]
-    elf_sections: Optional[str]
-    elf_section_count: Optional[int]
-    elf_segments: Optional[str]
-    elf_segment_count: Optional[int]
-    elf_interpreter: Optional[str]
-    elf_dynamic_tags: Optional[str]
-    elf_shared_libraries: Optional[str]
-    elf_shared_library_count: Optional[int]
-    elf_symbols: Optional[str]
-    elf_symbol_count: Optional[int]
-    elf_relocations: Optional[str]
-    elf_relocation_count: Optional[int]
-    
-    # Magika deep learning file type detection
-    magika_label: Optional[str]
-    magika_score: Optional[str]
-    magika_mime_type: Optional[str]
-    magika_group: Optional[str]
-    magika_description: Optional[str]
-    magika_is_text: Optional[bool]
-    
-    # CAPA analysis results
-    capa_capabilities: Optional[str]
-    capa_attack: Optional[str]
-    capa_mbc: Optional[str]
-    capa_analysis_date: Optional[datetime]
-    capa_total_capabilities: Optional[int]
+    # Analysis status
     analysis_status: Optional[str]
     analysis_task_id: Optional[str]
     

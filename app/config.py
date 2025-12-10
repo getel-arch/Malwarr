@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     # API
     api_key: str = "your-api-key-here"
     
+    # VirusTotal
+    virustotal_api_key: str = ""
+    
     # Application
     debug: bool = False
     

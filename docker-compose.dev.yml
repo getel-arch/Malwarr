@@ -11,6 +11,7 @@ services:
       - CAPA_RULES_PATH=/data/capa-rules
       - CAPA_EXPLORER_PATH=/data/capa-explorer
       - API_KEY=${API_KEY:-your-api-key-here}
+      - VIRUSTOTAL_API_KEY=${VIRUSTOTAL_API_KEY:-}
     volumes:
       - malwarr-data:/data
       - malwarr-config:/config
@@ -22,13 +23,14 @@ services:
   worker:
     build: .
     container_name: malwarr-worker
-    command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=4 --max-tasks-per-child=50 -Q ingestion,analysis,celery
+    command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=8 --max-tasks-per-child=50 -Q ingestion,analysis,celery
     environment:
       - DATABASE_URL=postgresql://malwarr:malwarr@db:5432/malwarr
       - REDIS_URL=redis://redis:6379/0
       - STORAGE_PATH=/data/samples
       - CAPA_RULES_PATH=/data/capa-rules
       - CAPA_EXPLORER_PATH=/data/capa-explorer
+      - VIRUSTOTAL_API_KEY=${VIRUSTOTAL_API_KEY:-}
     volumes:
       - malwarr-data:/data
       - malwarr-config:/config
