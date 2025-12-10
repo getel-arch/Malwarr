@@ -1,87 +1,68 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FaSearch, FaFilter, FaDownload } from 'react-icons/fa';
-import { malwarrApi, MalwareSample } from '../services/api';
+import { useSamples } from '../hooks';
+import { samplesService } from '../services';
+import { MalwareSample } from '../types';
+import { SearchBar, LoadingSpinner, FilterControls } from '../components/common';
+import { formatSize, formatHash } from '../utils';
+import { FILE_TYPES } from '../constants';
 import './Samples.css';
 
 const Samples: React.FC = () => {
-  const [samples, setSamples] = useState<MalwareSample[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [fileTypeFilter, setFileTypeFilter] = useState('');
   const [familyFilter, setFamilyFilter] = useState('');
+  const [searchResults, setSearchResults] = useState<MalwareSample[] | null>(null);
+  const [searching, setSearching] = useState(false);
 
-  useEffect(() => {
-    loadSamples();
-  }, [fileTypeFilter, familyFilter]);
+  const { samples, loading, refetch } = useSamples({
+    limit: 100,
+    file_type: fileTypeFilter || undefined,
+    family: familyFilter || undefined,
+    autoLoad: !searchResults,
+  });
 
-  const loadSamples = async () => {
-    try {
-      setLoading(true);
-      const data = await malwarrApi.getSamples({
-        limit: 100,
-        file_type: fileTypeFilter || undefined,
-        family: familyFilter || undefined,
-      });
-      setSamples(data);
-    } catch (error) {
-      console.error('Failed to load samples:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const displaySamples = searchResults || samples;
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
-      loadSamples();
+      setSearchResults(null);
+      refetch();
       return;
     }
 
     try {
-      setLoading(true);
-      const results = await malwarrApi.searchSamples(searchQuery);
-      setSamples(results);
+      setSearching(true);
+      const results = await samplesService.searchSamples(searchQuery);
+      setSearchResults(results);
     } catch (error) {
       console.error('Search failed:', error);
     } finally {
-      setLoading(false);
+      setSearching(false);
     }
   };
 
-  const formatSize = (bytes: number): string => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-  };
+  useEffect(() => {
+    if (!searchQuery) {
+      setSearchResults(null);
+    }
+  }, [fileTypeFilter, familyFilter]);
 
   return (
     <div className="samples-page">
       <div className="page-header">
-        <div className="search-bar">
-          <FaSearch className="search-icon" />
-          <input
-            type="text"
-            placeholder="Search by hash, filename, or family..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-          />
-          <button className="search-btn" onClick={handleSearch}>Search</button>
-        </div>
+        <SearchBar
+          value={searchQuery}
+          onChange={setSearchQuery}
+          onSearch={handleSearch}
+          placeholder="Search by hash, filename, or family..."
+        />
 
-        <div className="filters">
-          <FaFilter className="filter-icon" />
+        <FilterControls>
           <select value={fileTypeFilter} onChange={(e) => setFileTypeFilter(e.target.value)}>
-            <option value="">All Types</option>
-            <option value="pe">PE</option>
-            <option value="elf">ELF</option>
-            <option value="macho">Mach-O</option>
-            <option value="script">Script</option>
-            <option value="archive">Archive</option>
-            <option value="document">Document</option>
-            <option value="other">Other</option>
+            {FILE_TYPES.map(type => (
+              <option key={type.value} value={type.value}>{type.label}</option>
+            ))}
           </select>
 
           <input
@@ -90,14 +71,14 @@ const Samples: React.FC = () => {
             value={familyFilter}
             onChange={(e) => setFamilyFilter(e.target.value)}
           />
-        </div>
+        </FilterControls>
       </div>
 
-      {loading ? (
-        <div className="loading">Loading samples...</div>
+      {(loading || searching) ? (
+        <LoadingSpinner message="Loading samples..." />
       ) : (
         <div className="samples-grid">
-          {samples.map(sample => (
+          {displaySamples.map(sample => (
             <div key={sample.sha512} className="sample-card">
               <div className="sample-header">
                 <span className={`type-badge type-${sample.file_type}`}>
@@ -120,7 +101,7 @@ const Samples: React.FC = () => {
                 <div className="sample-hashes">
                   <div className="hash-row">
                     <span className="hash-label">SHA256:</span>
-                    <code>{sample.sha256.substring(0, 32)}...</code>
+                    <code>{formatHash(sample.sha256, 32)}</code>
                   </div>
                   <div className="hash-row">
                     <span className="hash-label">MD5:</span>
@@ -150,7 +131,7 @@ const Samples: React.FC = () => {
         </div>
       )}
 
-      {!loading && samples.length === 0 && (
+      {!loading && !searching && displaySamples.length === 0 && (
         <div className="no-results">
           <p>No samples found.</p>
           <Link to="/upload" className="upload-link">Upload a sample</Link>

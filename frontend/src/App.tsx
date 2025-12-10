@@ -10,6 +10,7 @@ import Upload from './pages/Upload';
 import Settings from './pages/Settings';
 import CapaExplorer from './pages/CapaExplorer';
 import Tasks from './pages/Tasks';
+import { ROUTES } from './constants';
 import './App.css';
 
 function App() {
@@ -18,14 +19,14 @@ function App() {
       <Router>
         <Layout>
           <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/samples" element={<Samples />} />
-            <Route path="/samples/:sha512" element={<SampleDetail />} />
-            <Route path="/samples/:sha512/capa" element={<CapaExplorer />} />
-            <Route path="/search" element={<Search />} />
-            <Route path="/tasks" element={<Tasks />} />
-            <Route path="/upload" element={<Upload />} />
-            <Route path="/settings" element={<Settings />} />
+            <Route path={ROUTES.HOME} element={<Dashboard />} />
+            <Route path={ROUTES.SAMPLES} element={<Samples />} />
+            <Route path={ROUTES.SAMPLE_DETAIL} element={<SampleDetail />} />
+            <Route path={ROUTES.CAPA_EXPLORER} element={<CapaExplorer />} />
+            <Route path={ROUTES.SEARCH} element={<Search />} />
+            <Route path={ROUTES.TASKS} element={<Tasks />} />
+            <Route path={ROUTES.UPLOAD} element={<Upload />} />
+            <Route path={ROUTES.SETTINGS} element={<Settings />} />
           </Routes>
         </Layout>
       </Router>

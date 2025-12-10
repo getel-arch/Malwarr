@@ -39,4 +39,11 @@ celery_app.conf.update(
     },
     # Result expiration
     result_expires=3600,  # Results expire after 1 hour
+    # Beat schedule for periodic tasks
+    beat_schedule={
+        'poll-virustotal-analyses': {
+            'task': 'app.workers.tasks.vt_polling_task',
+            'schedule': 300.0,  # Run every 5 minutes (300 seconds)
+        },
+    },
 )

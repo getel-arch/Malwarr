@@ -117,7 +117,13 @@ To enable VirusTotal analysis:
 4. Restart the application
 5. VT analysis will automatically run for all uploaded samples
 
-Note: The free VirusTotal API has rate limits. VT analysis only checks file hashes (no file upload).
+**Features:**
+- Automatic hash lookup for all uploaded samples
+- Upload samples to VT if not found in their database (button in UI)
+- Automatic polling every 5 minutes to update results after upload
+- Full scanner breakdown and detection ratios
+
+Note: The free VirusTotal API has rate limits.
 
 ## License
 

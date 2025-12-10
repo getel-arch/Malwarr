@@ -1,63 +1,42 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { FaBiohazard, FaUpload, FaDatabase, FaClock } from 'react-icons/fa';
 import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
-import { malwarrApi, SystemInfo, FileTypeStats, FamilyStats, MalwareSample } from '../services/api';
+import { useSystemInfo, useFileTypeStats, useFamilyStats, useSamples } from '../hooks';
+import { LoadingSpinner, StatCard } from '../components/common';
+import { formatBytes, formatHash } from '../utils';
+import { CHART_COLORS } from '../constants';
 import './Dashboard.css';
 
 ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 const Dashboard: React.FC = () => {
-  const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
-  const [fileTypeStats, setFileTypeStats] = useState<FileTypeStats | null>(null);
-  const [familyStats, setFamilyStats] = useState<FamilyStats | null>(null);
-  const [recentSamples, setRecentSamples] = useState<MalwareSample[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { systemInfo, loading: systemLoading } = useSystemInfo();
+  const { stats: fileTypeStats, loading: fileTypeLoading } = useFileTypeStats();
+  const { stats: familyStats, loading: familyLoading } = useFamilyStats();
+  const { samples: recentSamples, loading: samplesLoading } = useSamples({ limit: 5 });
 
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
-
-  const loadDashboardData = async () => {
-    try {
-      const [system, fileTypes, families, recent] = await Promise.all([
-        malwarrApi.getSystemInfo(),
-        malwarrApi.getFileTypeStats(),
-        malwarrApi.getFamilyStats(),
-        malwarrApi.getSamples({ limit: 5 }),
-      ]);
-
-      setSystemInfo(system);
-      setFileTypeStats(fileTypes);
-      setFamilyStats(families);
-      setRecentSamples(recent);
-    } catch (error) {
-      console.error('Failed to load dashboard data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const formatBytes = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-  };
+  const loading = systemLoading || fileTypeLoading || familyLoading || samplesLoading;
 
   const getFileTypeChartData = () => {
     if (!fileTypeStats) return null;
 
-    const colors = ['#f4511e', '#ff6f00', '#ffab00', '#ffd600', '#aeea00', '#00c853'];
+    const colors = [
+      CHART_COLORS.primary,
+      CHART_COLORS.secondary,
+      CHART_COLORS.tertiary,
+      CHART_COLORS.quaternary,
+      CHART_COLORS.quinary,
+      CHART_COLORS.senary,
+    ];
 
     return {
       labels: fileTypeStats.file_types.map(ft => ft.type.toUpperCase()),
       datasets: [{
         data: fileTypeStats.file_types.map(ft => ft.count),
         backgroundColor: colors,
-        borderColor: '#1a1a1a',
+        borderColor: CHART_COLORS.background,
         borderWidth: 2,
       }],
     };
@@ -71,59 +50,41 @@ const Dashboard: React.FC = () => {
       datasets: [{
         label: 'Samples',
         data: familyStats.top_families.map(f => f.count),
-        backgroundColor: '#f4511e',
-        borderColor: '#f4511e',
+        backgroundColor: CHART_COLORS.primary,
+        borderColor: CHART_COLORS.primary,
         borderWidth: 1,
       }],
     };
   };
 
   if (loading) {
-    return <div className="loading">Loading dashboard...</div>;
+    return <LoadingSpinner message="Loading dashboard..." />;
   }
 
   return (
     <div className="dashboard">
       <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon">
-            <FaBiohazard />
-          </div>
-          <div className="stat-content">
-            <div className="stat-label">Total Samples</div>
-            <div className="stat-value">{systemInfo?.total_samples || 0}</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">
-            <FaDatabase />
-          </div>
-          <div className="stat-content">
-            <div className="stat-label">Storage Used</div>
-            <div className="stat-value">{formatBytes(systemInfo?.storage_used || 0)}</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">
-            <FaUpload />
-          </div>
-          <div className="stat-content">
-            <div className="stat-label">Recent Uploads</div>
-            <div className="stat-value">{recentSamples.length}</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">
-            <FaClock />
-          </div>
-          <div className="stat-content">
-            <div className="stat-label">Status</div>
-            <div className="stat-value status-online">Online</div>
-          </div>
-        </div>
+        <StatCard
+          icon={<FaBiohazard />}
+          label="Total Samples"
+          value={systemInfo?.total_samples || 0}
+        />
+        <StatCard
+          icon={<FaDatabase />}
+          label="Storage Used"
+          value={formatBytes(systemInfo?.storage_used || 0)}
+        />
+        <StatCard
+          icon={<FaUpload />}
+          label="Recent Uploads"
+          value={recentSamples.length}
+        />
+        <StatCard
+          icon={<FaClock />}
+          label="Status"
+          value="Online"
+          className="status-online"
+        />
       </div>
 
       <div className="charts-grid">
@@ -210,7 +171,7 @@ const Dashboard: React.FC = () => {
                   </td>
                   <td><span className={`type-badge type-${sample.file_type}`}>{sample.file_type.toUpperCase()}</span></td>
                   <td>{sample.family || '-'}</td>
-                  <td><code className="hash">{sample.sha256.substring(0, 16)}...</code></td>
+                  <td><code className="hash">{formatHash(sample.sha256)}</code></td>
                   <td>{new Date(sample.upload_date).toLocaleDateString()}</td>
                 </tr>
               ))}
