@@ -15,6 +15,7 @@ from app.models import (
     MagikaAnalysis, 
     CAPAAnalysis, 
     VirusTotalAnalysis,
+    StringsAnalysis,
     FileType, 
     AnalysisStatus
 )
@@ -23,7 +24,8 @@ from app.api.schemas.samples import (
     ELFAnalysisResponse,
     MagikaAnalysisResponse,
     CAPAAnalysisResponse,
-    VirusTotalAnalysisResponse
+    VirusTotalAnalysisResponse,
+    StringsAnalysisResponse
 )
 from app.ingestion import IngestionService
 from app.storage import FileStorage
@@ -559,3 +561,18 @@ async def get_virustotal_analysis(sha512: str, db: Session = Depends(get_db)):
         return None
     
     return vt_analysis
+
+
+@router.get("/{sha512}/analysis/strings", response_model=Optional[StringsAnalysisResponse])
+async def get_strings_analysis(sha512: str, db: Session = Depends(get_db)):
+    """
+    Get Strings extraction results for a specific sample
+    
+    Returns None if no Strings analysis is available
+    """
+    strings_analysis = db.query(StringsAnalysis).filter(StringsAnalysis.sha512 == sha512).first()
+    
+    if not strings_analysis:
+        return None
+    
+    return strings_analysis

@@ -165,46 +165,6 @@ class IngestionService:
                 logger.warning(f"Magika analysis failed: {e}")
                 # Continue even if Magika fails - not critical
             
-            # Queue analysis tasks for PE and ELF files
-            if file_type == 'pe':
-                from app.workers.tasks import analyze_sample_with_pe
-                try:
-                    task = analyze_sample_with_pe.delay(sample.sha512)
-                    sample.analysis_task_id = task.id
-                    logger.info(f"PE analysis task queued: {task.id}")
-                except Exception as e:
-                    logger.error(f"Failed to queue PE analysis: {e}")
-                    sample.analysis_status = AnalysisStatus.FAILED
-
-            elif file_type == 'elf':
-                from app.workers.tasks import analyze_sample_with_elf
-                try:
-                    task = analyze_sample_with_elf.delay(sample.sha512)
-                    sample.analysis_task_id = task.id
-                    logger.info(f"ELF analysis task queued: {task.id}")
-                except Exception as e:
-                    logger.error(f"Failed to queue ELF analysis: {e}")
-                    sample.analysis_status = AnalysisStatus.FAILED
-
-            # Queue CAPA analysis for PE and ELF files (async)
-            if self.enable_capa and file_type in ['pe', 'elf']:
-                from app.workers.tasks import analyze_sample_with_capa
-                try:
-                    task = analyze_sample_with_capa.delay(sample.sha512)
-                    sample.analysis_task_id = task.id
-                    logger.info(f"CAPA analysis task queued: {task.id}")
-                except Exception as e:
-                    logger.error(f"Failed to queue CAPA analysis: {e}")
-                    sample.analysis_status = AnalysisStatus.FAILED
-
-            # Queue VirusTotal analysis for all files
-            from app.workers.tasks import analyze_sample_with_virustotal
-            try:
-                task = analyze_sample_with_virustotal.delay(sample.sha512)
-                logger.info(f"VirusTotal analysis task queued: {task.id}")
-            except Exception as e:
-                logger.error(f"Failed to queue VirusTotal analysis: {e}")
-
             if file_type not in ['pe', 'elf']:
                 # Mark as skipped for non-PE/ELF files
                 sample.analysis_status = AnalysisStatus.SKIPPED
@@ -215,10 +175,65 @@ class IngestionService:
         # Save file to storage
         self.storage.save_file(file_content, sample.storage_path)
         
-        # Save to database
+        # Save to database FIRST before queueing any tasks
         db.add(sample)
         db.commit()
         db.refresh(sample)
+        
+        # Now queue analysis tasks AFTER the sample is committed to the database
+        # This prevents race conditions where tasks execute before the sample exists
+        if file_type == 'pe':
+            from app.workers.tasks import analyze_sample_with_pe
+            try:
+                task = analyze_sample_with_pe.delay(sample.sha512)
+                sample.analysis_task_id = task.id
+                db.commit()
+                logger.info(f"PE analysis task queued: {task.id}")
+            except Exception as e:
+                logger.error(f"Failed to queue PE analysis: {e}")
+                sample.analysis_status = AnalysisStatus.FAILED
+                db.commit()
+
+        elif file_type == 'elf':
+            from app.workers.tasks import analyze_sample_with_elf
+            try:
+                task = analyze_sample_with_elf.delay(sample.sha512)
+                sample.analysis_task_id = task.id
+                db.commit()
+                logger.info(f"ELF analysis task queued: {task.id}")
+            except Exception as e:
+                logger.error(f"Failed to queue ELF analysis: {e}")
+                sample.analysis_status = AnalysisStatus.FAILED
+                db.commit()
+
+        # Queue CAPA analysis for PE and ELF files (async)
+        if self.enable_capa and file_type in ['pe', 'elf']:
+            from app.workers.tasks import analyze_sample_with_capa
+            try:
+                task = analyze_sample_with_capa.delay(sample.sha512)
+                sample.analysis_task_id = task.id
+                db.commit()
+                logger.info(f"CAPA analysis task queued: {task.id}")
+            except Exception as e:
+                logger.error(f"Failed to queue CAPA analysis: {e}")
+                sample.analysis_status = AnalysisStatus.FAILED
+                db.commit()
+
+        # Queue VirusTotal analysis for all files
+        from app.workers.tasks import analyze_sample_with_virustotal
+        try:
+            task = analyze_sample_with_virustotal.delay(sample.sha512)
+            logger.info(f"VirusTotal analysis task queued: {task.id}")
+        except Exception as e:
+            logger.error(f"Failed to queue VirusTotal analysis: {e}")
+
+        # Queue Strings analysis for all files
+        from app.workers.tasks import analyze_sample_with_strings
+        try:
+            task = analyze_sample_with_strings.delay(sample.sha512)
+            logger.info(f"Strings analysis task queued: {task.id}")
+        except Exception as e:
+            logger.error(f"Failed to queue Strings analysis: {e}")
         
         # Process archive if applicable
         extracted_samples = []

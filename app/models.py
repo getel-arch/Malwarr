@@ -89,6 +89,7 @@ class MalwareSample(Base):
     capa_analysis = relationship("CAPAAnalysis", back_populates="sample", uselist=False, cascade="all, delete-orphan")
     magika_analysis = relationship("MagikaAnalysis", back_populates="sample", uselist=False, cascade="all, delete-orphan")
     virustotal_analysis = relationship("VirusTotalAnalysis", back_populates="sample", uselist=False, cascade="all, delete-orphan")
+    strings_analysis = relationship("StringsAnalysis", back_populates="sample", uselist=False, cascade="all, delete-orphan")
 
 
 class PEAnalysis(Base):
@@ -271,3 +272,44 @@ class VirusTotalAnalysis(Base):
     
     # Relationship
     sample = relationship("MalwareSample", back_populates="virustotal_analysis")
+
+
+class StringsAnalysis(Base):
+    """Strings extraction analysis results"""
+    
+    __tablename__ = "strings_analysis"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    sha512 = Column(String(128), ForeignKey("malware_samples.sha512", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    
+    # Strings metadata
+    ascii_strings = Column(Text)  # JSON array of ASCII strings
+    unicode_strings = Column(Text)  # JSON array of Unicode strings
+    ascii_count = Column(Integer)  # Count of ASCII strings
+    unicode_count = Column(Integer)  # Count of Unicode strings
+    total_count = Column(Integer)  # Total strings count
+    min_length = Column(Integer, default=4)  # Minimum string length used
+    
+    # String statistics
+    longest_string_length = Column(Integer)  # Length of longest string found
+    average_string_length = Column(String(10))  # Average string length
+    
+    # Notable patterns (JSON arrays)
+    urls = Column(Text)  # Extracted URLs
+    ip_addresses = Column(Text)  # Extracted IP addresses
+    file_paths = Column(Text)  # Extracted file paths
+    registry_keys = Column(Text)  # Extracted Windows registry keys
+    email_addresses = Column(Text)  # Extracted email addresses
+    
+    # Pattern counts
+    url_count = Column(Integer, default=0)
+    ip_count = Column(Integer, default=0)
+    file_path_count = Column(Integer, default=0)
+    registry_key_count = Column(Integer, default=0)
+    email_count = Column(Integer, default=0)
+    
+    # Timestamps
+    analysis_date = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    # Relationship
+    sample = relationship("MalwareSample", back_populates="strings_analysis")
