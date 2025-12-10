@@ -43,6 +43,28 @@ services:
         condition: service_started
     restart: unless-stopped
 
+  beat:
+    image: ghcr.io/getel-arch/malwarr:latest
+    container_name: malwarr-beat
+    command: celery -A app.workers.celery_app beat --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://malwarr:malwarr@db:5432/malwarr
+      - REDIS_URL=redis://redis:6379/0
+      - STORAGE_PATH=/data/samples
+      - CAPA_RULES_PATH=/data/capa-rules
+      - CAPA_EXPLORER_PATH=/data/capa-explorer
+      - VIRUSTOTAL_API_KEY=${VIRUSTOTAL_API_KEY:-}
+      - EVENTLET_NO_GREENDNS=yes
+    volumes:
+      - malwarr-data:/data
+      - malwarr-config:/config
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
   db:
     image: postgres:15-alpine
     container_name: malwarr-db

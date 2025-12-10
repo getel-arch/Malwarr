@@ -463,6 +463,12 @@ export const malwarrApi = {
     return response.data;
   },
 
+  // VirusTotal upload
+  uploadToVirusTotal: async (sha512: string): Promise<{ status: string; sha512: string; analysis_id: string; message: string; sha256: string }> => {
+    const response = await api.post(`/api/v1/samples/${sha512}/virustotal/upload`);
+    return response.data;
+  },
+
   getCapaResults: async (sha512: string): Promise<any> => {
     const response = await api.get(`/api/v1/samples/${sha512}/capa`);
     return response.data;

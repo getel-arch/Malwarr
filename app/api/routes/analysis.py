@@ -148,6 +148,61 @@ async def rescan_sample(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/{sha512}/virustotal/upload")
+async def upload_sample_to_virustotal(
+    sha512: str,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Upload a sample to VirusTotal for scanning
+    
+    - **sha512**: SHA512 hash of the sample to upload
+    
+    Returns upload status and analysis tracking information
+    """
+    from app.analyzers.virustotal.vt_analyzer import upload_to_virustotal
+    
+    # Check if VT API key is configured
+    if not settings.virustotal_api_key or settings.virustotal_api_key == "":
+        raise HTTPException(
+            status_code=503, 
+            detail="VirusTotal API key not configured. Please configure VIRUSTOTAL_API_KEY in settings."
+        )
+    
+    sample = db.query(MalwareSample).filter(MalwareSample.sha512 == sha512).first()
+    
+    if not sample:
+        raise HTTPException(status_code=404, detail="Sample not found")
+    
+    # Upload to VirusTotal
+    result = await upload_to_virustotal(
+        db=db,
+        sample_id=sha512,
+        api_key=settings.virustotal_api_key
+    )
+    
+    if not result:
+        raise HTTPException(
+            status_code=500, 
+            detail="Failed to upload to VirusTotal. Check server logs for details."
+        )
+    
+    if not result.get('success'):
+        raise HTTPException(
+            status_code=500,
+            detail=result.get('error', 'Unknown error occurred during upload')
+        )
+    
+    return {
+        "status": "success",
+        "sha512": sha512,
+        "analysis_id": result.get('analysis_id'),
+        "message": result.get('message'),
+        "sha256": result.get('sha256')
+    }
+
+
 @router.get("/{sha512}/analyze/status")
 async def get_analysis_status(
     sha512: str,

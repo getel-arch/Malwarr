@@ -1,0 +1,46 @@
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  border-color: #f4511e;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.stat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  background: rgba(244, 81, 30, 0.2);
+  border-radius: 12px;
+  color: #f4511e;
+  font-size: 1.75rem;
+}
+
+.stat-content {
+  flex: 1;
+}
+
+.stat-label {
+  color: #999;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.5rem;
+}
+
+.stat-value {
+  color: #fff;
+  font-size: 2rem;
+  font-weight: 700;
+}
