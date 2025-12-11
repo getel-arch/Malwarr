@@ -25,7 +25,9 @@ services:
   worker:
     image: ghcr.io/getel-arch/malwarr:latest
     container_name: malwarr-worker
-    command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=8 --max-tasks-per-child=50 -Q ingestion,analysis,celery
+    mem_limit: 4g
+    mem_reservation: 512m
+    command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=8 --max-tasks-per-child=50 --worker_max_memory_per_child 512000 -Q ingestion,analysis,celery
     environment:
       - DATABASE_URL=postgresql://malwarr:malwarr@db:5432/malwarr
       - REDIS_URL=redis://redis:6379/0
@@ -46,6 +48,8 @@ services:
   beat:
     image: ghcr.io/getel-arch/malwarr:latest
     container_name: malwarr-beat
+    mem_limit: 1g
+    mem_reservation: 512m
     command: celery -A app.workers.celery_app beat --loglevel=info
     environment:
       - DATABASE_URL=postgresql://malwarr:malwarr@db:5432/malwarr
