@@ -27,7 +27,7 @@ services:
     container_name: malwarr-worker
     mem_limit: 4g
     mem_reservation: 512m
-    command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=8 --max-tasks-per-child=50 --worker_max_memory_per_child 512000 -Q ingestion,analysis,celery
+    command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=8 --max-tasks-per-child=50 --max-memory-per-child 512000 -Q ingestion,analysis,celery
     environment:
       - DATABASE_URL=postgresql://malwarr:malwarr@db:5432/malwarr
       - REDIS_URL=redis://redis:6379/0
