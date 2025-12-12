@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useSamples } from '../hooks';
 import { samplesService } from '../services';
 import { MalwareSample } from '../types';
@@ -9,9 +9,11 @@ import { FILE_TYPES } from '../constants';
 import './Samples.css';
 
 const Samples: React.FC = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [fileTypeFilter, setFileTypeFilter] = useState('');
-  const [familyFilter, setFamilyFilter] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+  const [fileTypeFilter, setFileTypeFilter] = useState(searchParams.get('type') || '');
+  const [familyFilter, setFamilyFilter] = useState(searchParams.get('family') || '');
   const [searchResults, setSearchResults] = useState<MalwareSample[] | null>(null);
   const [searching, setSearching] = useState(false);
 
@@ -23,6 +25,29 @@ const Samples: React.FC = () => {
   });
 
   const displaySamples = searchResults || samples;
+
+  const updateUrlParams = (query: string, type: string, family: string) => {
+    const params = new URLSearchParams();
+    if (query) params.set('q', query);
+    if (type) params.set('type', type);
+    if (family) params.set('family', family);
+    setSearchParams(params, { replace: true });
+  };
+
+  const handleSearchQueryChange = (value: string) => {
+    setSearchQuery(value);
+    updateUrlParams(value, fileTypeFilter, familyFilter);
+  };
+
+  const handleFileTypeChange = (value: string) => {
+    setFileTypeFilter(value);
+    updateUrlParams(searchQuery, value, familyFilter);
+  };
+
+  const handleFamilyFilterChange = (value: string) => {
+    setFamilyFilter(value);
+    updateUrlParams(searchQuery, fileTypeFilter, value);
+  };
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
@@ -47,19 +72,26 @@ const Samples: React.FC = () => {
       setSearchResults(null);
     }
   }, [fileTypeFilter, familyFilter]);
+  
+  // Trigger search on mount if query param exists
+  useEffect(() => {
+    if (searchParams.get('q')) {
+      handleSearch();
+    }
+  }, []);
 
   return (
     <div className="samples-page">
       <div className="page-header">
         <SearchBar
           value={searchQuery}
-          onChange={setSearchQuery}
+          onChange={handleSearchQueryChange}
           onSearch={handleSearch}
           placeholder="Search by hash, filename, or family..."
         />
 
         <FilterControls>
-          <select value={fileTypeFilter} onChange={(e) => setFileTypeFilter(e.target.value)}>
+          <select value={fileTypeFilter} onChange={(e) => handleFileTypeChange(e.target.value)}>
             {FILE_TYPES.map(type => (
               <option key={type.value} value={type.value}>{type.label}</option>
             ))}
@@ -69,7 +101,7 @@ const Samples: React.FC = () => {
             type="text"
             placeholder="Filter by family..."
             value={familyFilter}
-            onChange={(e) => setFamilyFilter(e.target.value)}
+            onChange={(e) => handleFamilyFilterChange(e.target.value)}
           />
         </FilterControls>
       </div>

@@ -222,7 +222,7 @@ class MagikaAnalysis(Base):
     is_text = Column(Boolean)  # Whether file is text-based
     
     # Timestamps
-    analysis_date = Column(DateTime, default=datetime.utcnow, nullable=False)
+    analysis_date = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
     # Relationship
     sample = relationship("MalwareSample", back_populates="magika_analysis")

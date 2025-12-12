@@ -9,16 +9,6 @@ import {
 } from '../types';
 
 export const analysisService = {
-  runCapaAnalysis: async (sha512: string): Promise<{
-    status: string;
-    sha512: string;
-    total_capabilities: number;
-    analysis_date: string;
-  }> => {
-    const response = await api.post(`/api/v1/samples/${sha512}/analyze/capa`);
-    return response.data;
-  },
-
   getCapaResults: async (sha512: string): Promise<any> => {
     const response = await api.get(`/api/v1/samples/${sha512}/capa`);
     return response.data;

@@ -104,9 +104,4 @@ export const samplesService = {
     });
     return response.data;
   },
-
-  rescanSample: async (sha512: string): Promise<any> => {
-    const response = await api.post(`/api/v1/samples/${sha512}/rescan`);
-    return response.data;
-  },
 };
