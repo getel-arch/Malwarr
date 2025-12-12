@@ -25,21 +25,32 @@ const Tasks: React.FC = () => {
       ]);
       if (!mounted.current) return;
 
+      console.log('Running tasks response:', r);
+      console.log('Queue response:', q);
+
       // Backend inspector responses might be returned as an array
       // or wrapped in an object like { value: [...], Count: N }
       const normalizeList = (v: any) => {
         if (!v) return [];
         if (Array.isArray(v)) return v;
-        if (Array.isArray(v.value)) return v.value;
+        if (v.value && Array.isArray(v.value)) return v.value;
         // Some responses may embed lists under other keys
-        for (const key of Object.keys(v)) {
-          if (Array.isArray(v[key])) return v[key];
+        if (typeof v === 'object') {
+          for (const key of Object.keys(v)) {
+            if (Array.isArray(v[key])) return v[key];
+          }
         }
         return [];
       };
 
-      setRunning(normalizeList(r));
-      setQueue(normalizeList(q));
+      const normalizedRunning = normalizeList(r);
+      const normalizedQueue = normalizeList(q);
+      
+      console.log('Normalized running:', normalizedRunning);
+      console.log('Normalized queue:', normalizedQueue);
+
+      setRunning(normalizedRunning);
+      setQueue(normalizedQueue);
     } catch (err) {
       console.error('Failed to load tasks:', err);
     } finally {

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FaSearch, FaInfoCircle, FaTimes, FaSpinner, FaExternalLinkAlt } from 'react-icons/fa';
 import { searchSamples, getSearchFields } from '../services/api';
 import './Search.css';
@@ -59,7 +59,9 @@ interface FieldsResponse {
 
 const Search: React.FC = () => {
   const navigate = useNavigate();
-  const [query, setQuery] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  const [query, setQuery] = useState(searchParams.get('q') || '');
   const [searchResults, setSearchResults] = useState<SearchResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,6 +78,15 @@ const Search: React.FC = () => {
     'analysis_status=completed',
     'tags CONTAINS "ransomware"',
   ];
+
+  const handleQueryChange = (value: string) => {
+    setQuery(value);
+    if (value) {
+      setSearchParams({ q: value }, { replace: true });
+    } else {
+      setSearchParams({}, { replace: true });
+    }
+  };
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,6 +109,14 @@ const Search: React.FC = () => {
       setLoading(false);
     }
   };
+  
+  // Execute search on mount if query param exists
+  useEffect(() => {
+    const queryParam = searchParams.get('q');
+    if (queryParam && !searchResults) {
+      handleSearch({ preventDefault: () => {} } as React.FormEvent);
+    }
+  }, []);
 
   const loadFieldsInfo = async () => {
     if (fieldsInfo) return; // Already loaded
@@ -118,7 +137,7 @@ const Search: React.FC = () => {
   };
 
   const setExampleQuery = (exampleQuery: string) => {
-    setQuery(exampleQuery);
+    handleQueryChange(exampleQuery);
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -154,14 +173,14 @@ const Search: React.FC = () => {
               className="search-input"
               placeholder='e.g., file_type=pe AND vt.positives>10'
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => handleQueryChange(e.target.value)}
               disabled={loading}
             />
             {query && (
               <button
                 type="button"
                 className="clear-button"
-                onClick={() => setQuery('')}
+                onClick={() => handleQueryChange('')}
                 disabled={loading}
               >
                 <FaTimes />

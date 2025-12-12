@@ -38,43 +38,6 @@ logger = logging.getLogger(__name__)
 file_storage = FileStorage()
 
 
-@router.post("/{sha512}/analyze/capa")
-async def run_capa_analysis(
-    sha512: str,
-    db: Session = Depends(get_db),
-    api_key: str = Depends(verify_api_key)
-):
-    """
-    Queue CAPA analysis on a specific sample (runs asynchronously)
-    
-    - **sha512**: SHA512 hash of the sample
-    
-    Returns task information for tracking the analysis progress
-    """
-    sample = db.query(MalwareSample).filter(MalwareSample.sha512 == sha512).first()
-    
-    if not sample:
-        raise HTTPException(status_code=404, detail="Sample not found")
-    
-    # Queue CAPA analysis
-    ingestion_service = IngestionService(file_storage)
-    success, message = ingestion_service.run_capa_analysis(sample, db)
-    
-    if not success:
-        # Check if it's an unsupported format error
-        if message and "unsupported" in message.lower():
-            raise HTTPException(status_code=422, detail=message)
-        else:
-            raise HTTPException(status_code=500, detail=message or "CAPA analysis failed")
-    
-    return {
-        "status": "queued",
-        "sha512": sha512,
-        "task_id": sample.analysis_task_id,
-        "message": message
-    }
-
-
 @router.post("/{sha512}/rescan")
 async def rescan_sample(
     sha512: str,
@@ -82,9 +45,9 @@ async def rescan_sample(
     api_key: str = Depends(verify_api_key)
 ):
     """
-    Trigger all relevant analyzers for a specific sample (PE/ELF/CAPA)
+    Trigger all relevant analyzers for a specific sample
 
-    - Queues PE/ELF metadata extraction and CAPA analysis when applicable
+    - Queues PE/ELF metadata extraction, CAPA analysis, VirusTotal, Strings, and Magika analysis
     """
     sample = db.query(MalwareSample).filter(MalwareSample.sha512 == sha512).first()
 
@@ -121,6 +84,33 @@ async def rescan_sample(
             queued['capa'] = task.id
             sample.analysis_task_id = task.id
             db.commit()
+
+        # Queue Magika analysis for all files
+        from app.workers.tasks import analyze_sample_with_magika
+        try:
+            task = analyze_sample_with_magika.delay(sample.sha512)
+            queued['magika'] = task.id
+            logger.info(f"Magika analysis task queued: {task.id}")
+        except Exception as e:
+            logger.error(f"Failed to queue Magika analysis: {e}")
+
+        # Queue VirusTotal analysis for all files
+        from app.workers.tasks import analyze_sample_with_virustotal
+        try:
+            task = analyze_sample_with_virustotal.delay(sample.sha512)
+            queued['virustotal'] = task.id
+            logger.info(f"VirusTotal analysis task queued: {task.id}")
+        except Exception as e:
+            logger.error(f"Failed to queue VirusTotal analysis: {e}")
+
+        # Queue Strings analysis for all files
+        from app.workers.tasks import analyze_sample_with_strings
+        try:
+            task = analyze_sample_with_strings.delay(sample.sha512)
+            queued['strings'] = task.id
+            logger.info(f"Strings analysis task queued: {task.id}")
+        except Exception as e:
+            logger.error(f"Failed to queue Strings analysis: {e}")
 
         if not queued:
             # Nothing to run for this file type

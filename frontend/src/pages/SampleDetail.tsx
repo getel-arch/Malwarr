@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { FaDownload, FaTrash, FaEdit, FaSave, FaTimes, FaSearch, FaChevronDown, FaChevronRight } from 'react-icons/fa';
 import { 
   malwarrApi, 
@@ -50,14 +50,19 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
 const SampleDetail: React.FC = () => {
   const { sha512 } = useParams<{ sha512: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  
   const [sample, setSample] = useState<MalwareSample | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState<any>({});
-  const [capaAnalyzing, setCapaAnalyzing] = useState(false);
   const [rescaning, setRescaning] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'analyzers' | 'relations'>('overview');
-  const [activeAnalyzerTab, setActiveAnalyzerTab] = useState<'capa' | 'pe' | 'elf' | 'magika' | 'virustotal' | 'strings'>('capa');
+  const [activeTab, setActiveTab] = useState<'overview' | 'analyzers' | 'relations'>(
+    (searchParams.get('tab') as 'overview' | 'analyzers' | 'relations') || 'overview'
+  );
+  const [activeAnalyzerTab, setActiveAnalyzerTab] = useState<'capa' | 'pe' | 'elf' | 'magika' | 'virustotal' | 'strings'>(
+    (searchParams.get('analyzer') as 'capa' | 'pe' | 'elf' | 'magika' | 'virustotal' | 'strings') || 'capa'
+  );
   const [relatedSamples, setRelatedSamples] = useState<{
     parentArchive?: MalwareSample;
     extractedFiles?: MalwareSample[];
@@ -92,6 +97,27 @@ const SampleDetail: React.FC = () => {
     virustotal: false,
     strings: false,
   });
+
+  // Helper functions to update URL params
+  const updateActiveTab = (tab: 'overview' | 'analyzers' | 'relations') => {
+    setActiveTab(tab);
+    const params = new URLSearchParams(searchParams);
+    params.set('tab', tab);
+    if (tab === 'analyzers' && activeAnalyzerTab) {
+      params.set('analyzer', activeAnalyzerTab);
+    } else {
+      params.delete('analyzer');
+    }
+    setSearchParams(params, { replace: true });
+  };
+
+  const updateActiveAnalyzerTab = (analyzer: 'capa' | 'pe' | 'elf' | 'magika' | 'virustotal' | 'strings') => {
+    setActiveAnalyzerTab(analyzer);
+    const params = new URLSearchParams(searchParams);
+    params.set('tab', 'analyzers');
+    params.set('analyzer', analyzer);
+    setSearchParams(params, { replace: true });
+  };
 
   const formatSize = (bytes: number): string => {
     if (bytes === 0) return '0 B';
@@ -157,22 +183,32 @@ const SampleDetail: React.FC = () => {
         strings: strings !== null,
       };
       
-      setAvailableAnalyzers(available);
-      
-      // Set the first available analyzer as active
-      if (available.capa) {
-        setActiveAnalyzerTab('capa');
-      } else if (available.pe) {
-        setActiveAnalyzerTab('pe');
-      } else if (available.elf) {
-        setActiveAnalyzerTab('elf');
-      } else if (available.magika) {
-        setActiveAnalyzerTab('magika');
-      } else if (available.virustotal) {
-        setActiveAnalyzerTab('virustotal');
-      } else if (available.strings) {
-        setActiveAnalyzerTab('strings');
-      }
+      setAvailableAnalyzers(prevAvailable => {
+        // Only set default active tab on first load (when we don't have previous data)
+        const isFirstLoad = !prevAvailable.capa && !prevAvailable.pe && !prevAvailable.elf && 
+                            !prevAvailable.magika && !prevAvailable.virustotal && !prevAvailable.strings;
+        
+        // If there's no analyzer param in URL and it's first load, set the first available
+        const hasAnalyzerParam = searchParams.get('analyzer');
+        if (isFirstLoad && !hasAnalyzerParam) {
+          // Set the first available analyzer as active only on initial load
+          if (available.capa) {
+            updateActiveAnalyzerTab('capa');
+          } else if (available.pe) {
+            updateActiveAnalyzerTab('pe');
+          } else if (available.elf) {
+            updateActiveAnalyzerTab('elf');
+          } else if (available.magika) {
+            updateActiveAnalyzerTab('magika');
+          } else if (available.virustotal) {
+            updateActiveAnalyzerTab('virustotal');
+          } else if (available.strings) {
+            updateActiveAnalyzerTab('strings');
+          }
+        }
+        
+        return available;
+      });
     } catch (error) {
       console.error('Failed to load analyzer results:', error);
     } finally {
@@ -265,22 +301,6 @@ const SampleDetail: React.FC = () => {
     }
   };
 
-  const handleRunCapaAnalysis = async () => {
-    if (!window.confirm('Run CAPA analysis on this sample? This may take a few minutes.')) return;
-    
-    setCapaAnalyzing(true);
-    try {
-      await malwarrApi.runCapaAnalysis(sha512!);
-      // Reload sample to get updated status - auto-refresh will handle the rest
-      await loadSample();
-      setCapaAnalyzing(false);
-    } catch (error: any) {
-      const errorMsg = error.response?.data?.detail || 'CAPA analysis failed. Make sure you have set your API key in Settings.';
-      alert(errorMsg);
-      setCapaAnalyzing(false);
-    }
-  };
-
   if (loading) {
     return <div className="loading">Loading sample details...</div>;
   }
@@ -352,19 +372,19 @@ const SampleDetail: React.FC = () => {
       <div className="tabs">
         <button 
           className={`tab ${activeTab === 'overview' ? 'active' : ''}`}
-          onClick={() => setActiveTab('overview')}
+          onClick={() => updateActiveTab('overview')}
         >
           Overview
         </button>
         <button 
           className={`tab ${activeTab === 'analyzers' ? 'active' : ''}`}
-          onClick={() => setActiveTab('analyzers')}
+          onClick={() => updateActiveTab('analyzers')}
         >
           Analyzers
         </button>
         <button 
           className={`tab ${activeTab === 'relations' ? 'active' : ''}`}
-          onClick={() => setActiveTab('relations')}
+          onClick={() => updateActiveTab('relations')}
         >
           Relations
         </button>
@@ -514,7 +534,7 @@ const SampleDetail: React.FC = () => {
             {availableAnalyzers.capa && (
               <button 
                 className={`sub-tab ${activeAnalyzerTab === 'capa' ? 'active' : ''}`}
-                onClick={() => setActiveAnalyzerTab('capa')}
+                onClick={() => updateActiveAnalyzerTab('capa')}
               >
                 CAPA
               </button>
@@ -522,7 +542,7 @@ const SampleDetail: React.FC = () => {
             {availableAnalyzers.pe && (
               <button 
                 className={`sub-tab ${activeAnalyzerTab === 'pe' ? 'active' : ''}`}
-                onClick={() => setActiveAnalyzerTab('pe')}
+                onClick={() => updateActiveAnalyzerTab('pe')}
               >
                 PE
               </button>
@@ -530,7 +550,7 @@ const SampleDetail: React.FC = () => {
             {availableAnalyzers.elf && (
               <button 
                 className={`sub-tab ${activeAnalyzerTab === 'elf' ? 'active' : ''}`}
-                onClick={() => setActiveAnalyzerTab('elf')}
+                onClick={() => updateActiveAnalyzerTab('elf')}
               >
                 ELF
               </button>
@@ -538,7 +558,7 @@ const SampleDetail: React.FC = () => {
             {availableAnalyzers.magika && (
               <button 
                 className={`sub-tab ${activeAnalyzerTab === 'magika' ? 'active' : ''}`}
-                onClick={() => setActiveAnalyzerTab('magika')}
+                onClick={() => updateActiveAnalyzerTab('magika')}
               >
                 Magika
               </button>
@@ -546,7 +566,7 @@ const SampleDetail: React.FC = () => {
             {availableAnalyzers.virustotal && (
               <button 
                 className={`sub-tab ${activeAnalyzerTab === 'virustotal' ? 'active' : ''}`}
-                onClick={() => setActiveAnalyzerTab('virustotal')}
+                onClick={() => updateActiveAnalyzerTab('virustotal')}
               >
                 VirusTotal
               </button>
@@ -554,7 +574,7 @@ const SampleDetail: React.FC = () => {
             {availableAnalyzers.strings && (
               <button 
                 className={`sub-tab ${activeAnalyzerTab === 'strings' ? 'active' : ''}`}
-                onClick={() => setActiveAnalyzerTab('strings')}
+                onClick={() => updateActiveAnalyzerTab('strings')}
               >
                 Strings
               </button>
@@ -573,18 +593,18 @@ const SampleDetail: React.FC = () => {
             <div className="analyzer-content">
               {capaAnalysis && !analyzersLoading ? (
                 <div className="detail-section full-width">
+                  {/* Analysis Date */}
+                  {capaAnalysis.analysis_date && (
+                    <div className="analysis-date-banner">
+                      <strong>Analysis Date:</strong> {new Date(capaAnalysis.analysis_date).toLocaleString()}
+                    </div>
+                  )}
                   <h3>CAPA Analysis Results</h3>
                   <div className="info-grid">
                     {capaAnalysis.total_capabilities !== undefined && (
                       <div className="info-row">
                         <span className="label">Total Capabilities:</span>
                         <span className="badge">{capaAnalysis.total_capabilities}</span>
-                      </div>
-                    )}
-                    {capaAnalysis.analysis_date && (
-                      <div className="info-row">
-                        <span className="label">Analysis Date:</span>
-                        <span>{new Date(capaAnalysis.analysis_date).toLocaleString()}</span>
                       </div>
                     )}
                     <div className="info-row full-width">
@@ -615,15 +635,6 @@ const SampleDetail: React.FC = () => {
                           {!sample.analysis_status && 'No CAPA analysis has been run yet'}
                         </span>
                       </div>
-                      <div className="info-row">
-                        <button 
-                          className="btn btn-primary" 
-                          onClick={handleRunCapaAnalysis}
-                          disabled={capaAnalyzing}
-                        >
-                          <FaSearch /> {capaAnalyzing ? 'Running Analysis...' : 'Run CAPA Analysis'}
-                        </button>
-                      </div>
                     </div>
                   ) : (
                     <div className="info-row">
@@ -645,6 +656,12 @@ const SampleDetail: React.FC = () => {
                 </div>
               ) : peAnalysis ? (
               <div className="detail-section full-width">
+                {/* Analysis Date */}
+                {peAnalysis.analysis_date && (
+                  <div className="analysis-date-banner">
+                    <strong>Analysis Date:</strong> {new Date(peAnalysis.analysis_date).toLocaleString()}
+                  </div>
+                )}
                 
                 {/* PE Header Information */}
                 <CollapsibleSection title="PE Header Information" defaultCollapsed={false}>
@@ -1107,6 +1124,12 @@ const SampleDetail: React.FC = () => {
                 </div>
               ) : elfAnalysis ? (
               <div className="detail-section full-width">
+                {/* Analysis Date */}
+                {elfAnalysis.analysis_date && (
+                  <div className="analysis-date-banner">
+                    <strong>Analysis Date:</strong> {new Date(elfAnalysis.analysis_date).toLocaleString()}
+                  </div>
+                )}
                 
                 {/* ELF Header Information */}
                 <CollapsibleSection title="ELF Header Information" defaultCollapsed={false}>
@@ -1459,6 +1482,12 @@ const SampleDetail: React.FC = () => {
                 </div>
               ) : magikaAnalysis ? (
               <div className="detail-section full-width">
+                {/* Analysis Date */}
+                {magikaAnalysis.analysis_date && (
+                  <div className="analysis-date-banner">
+                    <strong>Analysis Date:</strong> {new Date(magikaAnalysis.analysis_date).toLocaleString()}
+                  </div>
+                )}
                 <h3>Magika AI File Type Detection</h3>
                 <div className="info-grid">
                   <div className="info-row">
@@ -1515,6 +1544,12 @@ const SampleDetail: React.FC = () => {
                 </div>
               ) : vtAnalysis ? (
               <div className="detail-section full-width">
+                {/* Analysis Date */}
+                {vtAnalysis.analysis_date && (
+                  <div className="analysis-date-banner">
+                    <strong>Analysis Date:</strong> {new Date(vtAnalysis.analysis_date).toLocaleString()}
+                  </div>
+                )}
                 <h3>VirusTotal Analysis</h3>
                 {vtAnalysis.positives !== null && vtAnalysis.positives !== undefined ? (
                   <div className="info-grid">
@@ -1528,12 +1563,6 @@ const SampleDetail: React.FC = () => {
                       <div className="info-row">
                         <span className="label">VT Scan Date:</span>
                         <span>{new Date(vtAnalysis.scan_date).toLocaleString()}</span>
-                      </div>
-                    )}
-                    {vtAnalysis.analysis_date && (
-                      <div className="info-row">
-                        <span className="label">Analysis Date:</span>
-                        <span>{new Date(vtAnalysis.analysis_date).toLocaleString()}</span>
                       </div>
                     )}
                     {vtAnalysis.permalink && (
@@ -1635,6 +1664,12 @@ const SampleDetail: React.FC = () => {
                 </div>
               ) : stringsAnalysis ? (
               <div className="detail-section full-width">
+                {/* Analysis Date */}
+                {stringsAnalysis.analysis_date && (
+                  <div className="analysis-date-banner">
+                    <strong>Analysis Date:</strong> {new Date(stringsAnalysis.analysis_date).toLocaleString()}
+                  </div>
+                )}
                 <h3>Strings Analysis</h3>
                 
                 {/* Summary Statistics */}
@@ -1674,12 +1709,6 @@ const SampleDetail: React.FC = () => {
                       <div className="info-row">
                         <span className="label">Average Length:</span>
                         <span>{stringsAnalysis.average_string_length} characters</span>
-                      </div>
-                    )}
-                    {stringsAnalysis.analysis_date && (
-                      <div className="info-row">
-                        <span className="label">Analysis Date:</span>
-                        <span>{new Date(stringsAnalysis.analysis_date).toLocaleString()}</span>
                       </div>
                     )}
                   </div>

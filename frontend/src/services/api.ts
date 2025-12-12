@@ -451,12 +451,6 @@ export const malwarrApi = {
     return response.data;
   },
 
-  // CAPA Analysis
-  runCapaAnalysis: async (sha512: string): Promise<{ status: string; sha512: string; total_capabilities: number; analysis_date: string }> => {
-    const response = await api.post(`/api/v1/samples/${sha512}/analyze/capa`);
-    return response.data;
-  },
-
   // Rescan (run all relevant analyzers for a sample)
   rescanSample: async (sha512: string): Promise<any> => {
     const response = await api.post(`/api/v1/samples/${sha512}/rescan`);
