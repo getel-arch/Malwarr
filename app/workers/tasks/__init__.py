@@ -8,10 +8,10 @@ from .pe_task import analyze_sample_with_pe
 from .elf_task import analyze_sample_with_elf
 from .capa_task import analyze_sample_with_capa
 from .ingestion_task import ingest_file_task
-from .vt_task import analyze_sample_with_virustotal
+from .vt_task import analyze_sample_with_virustotal, poll_pending_virustotal_analyses
 from .strings_task import analyze_sample_with_strings
-from .vt_polling_task import poll_pending_virustotal_analyses
 from .magika_task import analyze_sample_with_magika
+from .archive_task import extract_archive_task
 
 __all__ = [
 	"analyze_sample_with_pe",
@@ -22,4 +22,5 @@ __all__ = [
 	"analyze_sample_with_strings",
 	"poll_pending_virustotal_analyses",
 	"analyze_sample_with_magika",
+	"extract_archive_task",
 ]

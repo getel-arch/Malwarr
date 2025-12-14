@@ -195,7 +195,6 @@ class MalwareSampleResponse(MalwareSampleBase):
     md5: str
     file_size: int
     file_type: FileType
-    mime_type: Optional[str]
     
     # Archive metadata
     is_archive: Optional[str]
@@ -216,11 +215,6 @@ class MalwareSampleResponse(MalwareSampleBase):
     # Analysis status
     analysis_status: Optional[str]
     analysis_task_id: Optional[str]
-    
-    # General metadata
-    magic_description: Optional[str]
-    strings_count: Optional[int]
-    entropy: Optional[str]
     
     # External references
     virustotal_link: Optional[str]

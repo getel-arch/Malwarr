@@ -3,7 +3,6 @@ from celery import Task
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.storage import FileStorage
-from app.analyzers.capa.capa_analyzer import CapaAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +25,10 @@ class DatabaseTask(Task):
         return self._storage
 
     @property
-    def capa_analyzer(self) -> CapaAnalyzer:
+    def capa_analyzer(self):
         if self._capa_analyzer is None:
+            # Import here to avoid circular dependency
+            from app.workers.tasks.capa_task import CapaAnalyzer
             self._capa_analyzer = CapaAnalyzer()
         return self._capa_analyzer
 

@@ -2,9 +2,9 @@
 import logging
 from typing import Dict, Any, Optional, List
 from datetime import datetime
+from pathlib import Path
 from app.models import MalwareSample, MagikaAnalysis, FileType
 from app.workers.tasks.base_analysis_task import AnalysisTask
-from app.analyzers.magika.magika_analyzer import extract_magika_metadata
 from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -12,6 +12,9 @@ logger = logging.getLogger(__name__)
 
 class MagikaAnalysisTask(AnalysisTask):
     """Magika file type detection analysis task"""
+    
+    # Class-level Magika instance - initialized once for performance
+    _magika_instance = None
     
     @property
     def task_name(self) -> str:
@@ -21,9 +24,76 @@ class MagikaAnalysisTask(AnalysisTask):
         # Magika can analyze any file type
         return None
     
+    @classmethod
+    def _get_magika(cls):
+        """Get or initialize the global Magika instance"""
+        if cls._magika_instance is None:
+            try:
+                from magika import Magika
+                cls._magika_instance = Magika()
+                logger.info("Magika analyzer initialized successfully")
+            except Exception as e:
+                logger.error(f"Failed to initialize Magika: {e}", exc_info=True)
+                raise
+        return cls._magika_instance
+    
+    def extract_magika_metadata(self, file_path: str) -> Dict[str, Any]:
+        """
+        Extract file type information using Magika deep learning model
+        
+        Args:
+            file_path: Path to the file to analyze
+            
+        Returns:
+            Dictionary containing Magika analysis results:
+            - label: Detected file type label
+            - score: Confidence score (0-1)
+            - description: Human-readable description
+            - mime_type: Detected MIME type
+            - magic: Magic bytes pattern
+            - group: File type group/category
+            - is_text: Whether file is text-based
+            - extensions: List of common extensions for this type
+        """
+        try:
+            magika = self._get_magika()
+            
+            # Analyze the file
+            result = magika.identify_path(Path(file_path))
+            
+            metadata = {
+                'label': result.output.ct_label,
+                'score': float(result.output.score),
+                'mime_type': result.output.mime_type,
+                'group': result.output.group,
+                'description': result.output.description if hasattr(result.output, 'description') else None,
+                'magic': result.output.magic if hasattr(result.output, 'magic') else None,
+                'is_text': result.output.is_text if hasattr(result.output, 'is_text') else None,
+            }
+            
+            # Add extensions if available
+            if hasattr(result.output, 'extensions'):
+                metadata['extensions'] = result.output.extensions
+            
+            logger.info(f"Magika analysis completed: {metadata['label']} (score: {metadata['score']:.3f})")
+            return metadata
+            
+        except Exception as e:
+            logger.error(f"Magika analysis failed for {file_path}: {e}", exc_info=True)
+            return {
+                'label': None,
+                'score': None,
+                'mime_type': None,
+                'group': None,
+                'description': f"Analysis failed: {str(e)}",
+                'magic': None,
+                'is_text': None,
+                'extensions': None
+            }
+    
     def perform_analysis(self, sample: MalwareSample, file_path: str) -> Dict[str, Any]:
         """Perform Magika file type detection"""
-        magika_metadata = extract_magika_metadata(str(file_path))
+        magika_metadata = self.extract_magika_metadata(str(file_path))
         
         if magika_metadata:
             return {

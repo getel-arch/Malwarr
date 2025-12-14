@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { FaDownload, FaTrash, FaEdit, FaSave, FaTimes, FaSearch, FaChevronDown, FaChevronRight } from 'react-icons/fa';
+import { FaDownload, FaTrash, FaEdit, FaSave, FaTimes, FaSearch, FaChevronDown, FaChevronRight, FaUpload } from 'react-icons/fa';
 import { 
   malwarrApi, 
   MalwareSample, 
@@ -76,6 +76,7 @@ const SampleDetail: React.FC = () => {
   const [vtAnalysis, setVtAnalysis] = useState<VirusTotalAnalysis | null>(null);
   const [stringsAnalysis, setStringsAnalysis] = useState<StringsAnalysis | null>(null);
   const [analyzersLoading, setAnalyzersLoading] = useState(false);
+  const [uploadingToVT, setUploadingToVT] = useState(false);
   
   // Strings search state
   const [stringsSearchTerm, setStringsSearchTerm] = useState('');
@@ -117,6 +118,23 @@ const SampleDetail: React.FC = () => {
     params.set('tab', 'analyzers');
     params.set('analyzer', analyzer);
     setSearchParams(params, { replace: true });
+  };
+
+  const handleUploadToVirusTotal = async () => {
+    if (!sha512) return;
+    
+    setUploadingToVT(true);
+    try {
+      const result = await malwarrApi.uploadToVirusTotal(sha512);
+      alert(`Success: ${result.message}`);
+      // Reload the page to fetch updated VT analysis
+      window.location.reload();
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.detail || err.message || 'Failed to upload to VirusTotal';
+      alert(`Error: ${errorMessage}`);
+    } finally {
+      setUploadingToVT(false);
+    }
   };
 
   const formatSize = (bytes: number): string => {
@@ -406,15 +424,11 @@ const SampleDetail: React.FC = () => {
             </div>
             <div className="info-row">
               <span className="label">MIME Type:</span>
-              <span>{sample.mime_type}</span>
+              <span>{sample.magika_analysis?.mime_type || 'N/A'}</span>
             </div>
             <div className="info-row">
-              <span className="label">Entropy:</span>
-              <span>{sample.entropy}</span>
-            </div>
-            <div className="info-row">
-              <span className="label">Strings:</span>
-              <span>{sample.strings_count}</span>
+              <span className="label">Total Strings:</span>
+              <span>{sample.strings_analysis?.total_count || 'N/A'}</span>
             </div>
           </div>
         </div>
@@ -1551,7 +1565,20 @@ const SampleDetail: React.FC = () => {
                   </div>
                 )}
                 <h3>VirusTotal Analysis</h3>
-                {vtAnalysis.positives !== null && vtAnalysis.positives !== undefined ? (
+                {vtAnalysis.verbose_msg === 'Hash not found in VirusTotal database' ? (
+                  <>
+                    <p>This file is not in the VirusTotal database.</p>
+                    <p>You can upload it for analysis.</p>
+                    <button 
+                      onClick={handleUploadToVirusTotal}
+                      disabled={uploadingToVT}
+                      className="btn btn-primary"
+                      style={{ marginTop: '20px' }}
+                    >
+                      <FaUpload /> {uploadingToVT ? 'Uploading...' : 'Upload to VirusTotal'}
+                    </button>
+                  </>
+                ) : vtAnalysis.positives !== null && vtAnalysis.positives !== undefined ? (
                   <div className="info-grid">
                     <div className="info-row">
                       <span className="label">Detection Ratio:</span>
@@ -1581,7 +1608,7 @@ const SampleDetail: React.FC = () => {
                     )}
                   </div>
                 ) : (
-                  <p>No VirusTotal data available for this sample. {vtAnalysis.verbose_msg || 'The file may not be in VirusTotal database.'}</p>
+                  <p>No VirusTotal data available for this sample. {vtAnalysis.verbose_msg || 'Analysis may be pending.'}</p>
                 )}
 
                 {/* Individual Scanner Results */}
@@ -1648,7 +1675,17 @@ const SampleDetail: React.FC = () => {
               </div>
               ) : (
                 <div className="detail-section full-width">
+                  <h3>VirusTotal Analysis</h3>
                   <p>No VirusTotal analysis data available for this sample.</p>
+                  <p>This file may not be in the VirusTotal database. You can upload it for analysis.</p>
+                  <button 
+                    onClick={handleUploadToVirusTotal}
+                    disabled={uploadingToVT}
+                    className="btn btn-primary"
+                    style={{ marginTop: '20px' }}
+                  >
+                    <FaUpload /> {uploadingToVT ? 'Uploading...' : 'Upload to VirusTotal'}
+                  </button>
                 </div>
               )}
             </div>

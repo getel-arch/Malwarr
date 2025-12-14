@@ -16,7 +16,6 @@ from app.api.schemas import (
     UploadResponse
 )
 from app.models import MalwareSample, FileType
-from app.ingestion import IngestionService
 from app.storage import FileStorage
 
 router = APIRouter(prefix="/api/v1/samples", tags=["samples"])

@@ -27,7 +27,6 @@ from app.api.schemas.samples import (
     VirusTotalAnalysisResponse,
     StringsAnalysisResponse
 )
-from app.ingestion import IngestionService
 from app.storage import FileStorage
 from app.config import settings
 
@@ -151,7 +150,7 @@ async def upload_sample_to_virustotal(
     
     Returns upload status and analysis tracking information
     """
-    from app.analyzers.virustotal.vt_analyzer import upload_to_virustotal
+    from app.workers.tasks.vt_task import VirusTotalTask
     
     # Check if VT API key is configured
     if not settings.virustotal_api_key or settings.virustotal_api_key == "":
@@ -166,8 +165,9 @@ async def upload_sample_to_virustotal(
         raise HTTPException(status_code=404, detail="Sample not found")
     
     # Upload to VirusTotal
-    result = await upload_to_virustotal(
-        db=db,
+    vt_task = VirusTotalTask()
+    vt_task._db = db  # Share the database session
+    result = await vt_task.upload_to_virustotal(
         sample_id=sha512,
         api_key=settings.virustotal_api_key
     )
@@ -183,6 +183,17 @@ async def upload_sample_to_virustotal(
             status_code=500,
             detail=result.get('error', 'Unknown error occurred during upload')
         )
+    
+    # Schedule polling task to check for results after a delay
+    # VT typically takes 1-3 minutes to analyze a file
+    from app.workers.tasks.vt_task import poll_pending_virustotal_analyses
+    
+    # Schedule first check after 2 minutes
+    poll_pending_virustotal_analyses.apply_async(countdown=120)
+    # Schedule second check after 5 minutes
+    poll_pending_virustotal_analyses.apply_async(countdown=300)
+    # Schedule third check after 10 minutes
+    poll_pending_virustotal_analyses.apply_async(countdown=600)
     
     return {
         "status": "success",
