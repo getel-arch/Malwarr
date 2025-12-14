@@ -55,6 +55,11 @@ class FileStorage:
         full_path = self.storage_path / relative_path
         return full_path.exists()
     
+    def get_full_path(self, relative_path: str) -> str:
+        """Get the full absolute path for a relative storage path"""
+        full_path = self.storage_path / relative_path
+        return str(full_path)
+    
     def get_storage_size(self) -> int:
         """Get total storage size in bytes"""
         total_size = 0
