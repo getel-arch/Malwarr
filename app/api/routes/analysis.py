@@ -150,8 +150,6 @@ async def upload_sample_to_virustotal(
     
     Returns upload status and analysis tracking information
     """
-    from app.workers.tasks.vt_task import VirusTotalTask
-    
     # Check if VT API key is configured
     if not settings.virustotal_api_key or settings.virustotal_api_key == "":
         raise HTTPException(
@@ -164,43 +162,96 @@ async def upload_sample_to_virustotal(
     if not sample:
         raise HTTPException(status_code=404, detail="Sample not found")
     
-    # Upload to VirusTotal
-    vt_task = VirusTotalTask()
-    vt_task._db = db  # Share the database session
-    result = await vt_task.upload_to_virustotal(
-        sample_id=sha512,
-        api_key=settings.virustotal_api_key
-    )
+    # Queue the upload task
+    from app.workers.tasks import upload_sample_to_virustotal_task
     
-    if not result:
-        raise HTTPException(
-            status_code=500, 
-            detail="Failed to upload to VirusTotal. Check server logs for details."
-        )
-    
-    if not result.get('success'):
+    try:
+        task = upload_sample_to_virustotal_task.delay(sha512)
+        logger.info(f"VirusTotal upload task queued: {task.id} for sample: {sha512}")
+        
+        return {
+            "status": "queued",
+            "sha512": sha512,
+            "task_id": task.id,
+            "message": "Upload task queued. Results will be available once VirusTotal completes analysis."
+        }
+    except Exception as e:
+        logger.error(f"Failed to queue VirusTotal upload task: {e}")
         raise HTTPException(
             status_code=500,
-            detail=result.get('error', 'Unknown error occurred during upload')
+            detail=f"Failed to queue upload task: {str(e)}"
+        )
+
+
+@router.post("/virustotal/upload/bulk")
+async def upload_samples_to_virustotal_bulk(
+    sha512_list: List[str],
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Upload multiple samples to VirusTotal for scanning
+    
+    - **sha512_list**: List of SHA512 hashes to upload
+    
+    Returns upload status for each sample
+    """
+    # Check if VT API key is configured
+    if not settings.virustotal_api_key or settings.virustotal_api_key == "":
+        raise HTTPException(
+            status_code=503, 
+            detail="VirusTotal API key not configured. Please configure VIRUSTOTAL_API_KEY in settings."
         )
     
-    # Schedule polling task to check for results after a delay
-    # VT typically takes 1-3 minutes to analyze a file
-    from app.workers.tasks.vt_task import poll_pending_virustotal_analyses
+    if not sha512_list or len(sha512_list) == 0:
+        raise HTTPException(status_code=400, detail="No samples provided")
     
-    # Schedule first check after 2 minutes
-    poll_pending_virustotal_analyses.apply_async(countdown=120)
-    # Schedule second check after 5 minutes
-    poll_pending_virustotal_analyses.apply_async(countdown=300)
-    # Schedule third check after 10 minutes
-    poll_pending_virustotal_analyses.apply_async(countdown=600)
+    if len(sha512_list) > 100:
+        raise HTTPException(status_code=400, detail="Maximum 100 samples can be uploaded at once")
+    
+    from app.workers.tasks import upload_sample_to_virustotal_task
+    
+    results = []
+    
+    for sha512 in sha512_list:
+        try:
+            # Verify sample exists
+            sample = db.query(MalwareSample).filter(MalwareSample.sha512 == sha512).first()
+            
+            if not sample:
+                results.append({
+                    "sha512": sha512,
+                    "status": "error",
+                    "message": "Sample not found"
+                })
+                continue
+            
+            # Queue the upload task
+            task = upload_sample_to_virustotal_task.delay(sha512)
+            logger.info(f"VirusTotal upload task queued: {task.id} for sample: {sha512}")
+            
+            results.append({
+                "sha512": sha512,
+                "status": "queued",
+                "task_id": task.id,
+                "message": "Upload task queued"
+            })
+        except Exception as e:
+            logger.error(f"Error queueing upload for {sha512}: {e}")
+            results.append({
+                "sha512": sha512,
+                "status": "error",
+                "message": str(e)
+            })
+    
+    success_count = sum(1 for r in results if r['status'] == 'queued')
+    error_count = len(results) - success_count
     
     return {
-        "status": "success",
-        "sha512": sha512,
-        "analysis_id": result.get('analysis_id'),
-        "message": result.get('message'),
-        "sha256": result.get('sha256')
+        "total": len(results),
+        "queued": success_count,
+        "errors": error_count,
+        "results": results
     }
 
 

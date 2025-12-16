@@ -471,6 +471,23 @@ export const malwarrApi = {
     return response.data;
   },
 
+  // Bulk VirusTotal upload
+  uploadToVirusTotalBulk: async (sha512List: string[]): Promise<{
+    total: number;
+    success: number;
+    errors: number;
+    results: Array<{
+      sha512: string;
+      status: string;
+      analysis_id?: string;
+      message: string;
+      sha256?: string;
+    }>;
+  }> => {
+    const response = await api.post(`/api/v1/samples/virustotal/upload/bulk`, sha512List);
+    return response.data;
+  },
+
   getCapaResults: async (sha512: string): Promise<any> => {
     const response = await api.get(`/api/v1/samples/${sha512}/capa`);
     return response.data;
@@ -601,6 +618,23 @@ export const getSearchFields = async () => {
 // Tasks
 export const getTaskStatus = async (taskId: string) => {
   const response = await api.get(`/api/v1/tasks/${taskId}`);
+  return response.data;
+};
+
+// Bulk VirusTotal upload (exported for easy access)
+export const uploadToVirusTotalBulk = async (sha512List: string[]): Promise<{
+  total: number;
+  success: number;
+  errors: number;
+  results: Array<{
+    sha512: string;
+    status: string;
+    analysis_id?: string;
+    message: string;
+    sha256?: string;
+  }>;
+}> => {
+  const response = await api.post(`/api/v1/samples/virustotal/upload/bulk`, sha512List);
   return response.data;
 };
 

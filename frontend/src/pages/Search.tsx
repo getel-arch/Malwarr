@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FaSearch, FaInfoCircle, FaTimes, FaSpinner, FaExternalLinkAlt } from 'react-icons/fa';
-import { searchSamples, getSearchFields } from '../services/api';
+import { FaSearch, FaInfoCircle, FaTimes, FaSpinner, FaExternalLinkAlt, FaCheckSquare, FaSquare, FaUpload, FaTrash } from 'react-icons/fa';
+import { searchSamples, getSearchFields, uploadToVirusTotalBulk } from '../services/api';
 import './Search.css';
 
 interface SearchResult {
@@ -67,6 +67,9 @@ const Search: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
   const [fieldsInfo, setFieldsInfo] = useState<FieldsResponse | null>(null);
+  const [selectedSamples, setSelectedSamples] = useState<Set<string>>(new Set());
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [bulkActionStatus, setBulkActionStatus] = useState<string | null>(null);
 
   const exampleQueries = [
     'file_type=pe AND pe.is_signed=false',
@@ -156,6 +159,61 @@ const Search: React.FC = () => {
       navigate(`/samples/${sha512}`);
     }
   };
+
+  const toggleSelectSample = (sha512: string) => {
+    setSelectedSamples(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(sha512)) {
+        newSet.delete(sha512);
+      } else {
+        newSet.add(sha512);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (!searchResults?.results) return;
+    
+    if (selectedSamples.size === searchResults.results.length) {
+      setSelectedSamples(new Set());
+    } else {
+      setSelectedSamples(new Set(searchResults.results.map(r => r.sha512)));
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedSamples(new Set());
+  };
+
+  const handleBulkUploadToVirusTotal = async () => {
+    if (selectedSamples.size === 0) return;
+
+    setBulkActionLoading(true);
+    setBulkActionStatus(null);
+
+    try {
+      const result = await uploadToVirusTotalBulk(Array.from(selectedSamples));
+      setBulkActionStatus(
+        `Successfully uploaded ${result.success} sample(s) to VirusTotal. ${result.errors > 0 ? `${result.errors} failed.` : ''}`
+      );
+      
+      // Clear selection after successful upload
+      setSelectedSamples(new Set());
+      
+      // Auto-clear status after 5 seconds
+      setTimeout(() => setBulkActionStatus(null), 5000);
+    } catch (err: any) {
+      setBulkActionStatus(`Error: ${err.response?.data?.detail || err.message || 'Failed to upload samples'}`);
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  // Clear selections when search results change
+  useEffect(() => {
+    setSelectedSamples(new Set());
+  }, [searchResults]);
 
   return (
     <div className="search-container">
@@ -307,8 +365,54 @@ const Search: React.FC = () => {
                   {' '}(showing {searchResults.results.length})
                 </span>
               )}
+              {selectedSamples.size > 0 && (
+                <span className="selected-count">
+                  {' '}| <strong>{selectedSamples.size}</strong> selected
+                </span>
+              )}
             </div>
           </div>
+
+          {selectedSamples.size > 0 && (
+            <div className="bulk-actions-toolbar">
+              <div className="bulk-actions-info">
+                <strong>{selectedSamples.size}</strong> sample{selectedSamples.size !== 1 ? 's' : ''} selected
+              </div>
+              <div className="bulk-actions-buttons">
+                <button
+                  className="bulk-action-button vt-upload"
+                  onClick={handleBulkUploadToVirusTotal}
+                  disabled={bulkActionLoading}
+                  title="Upload selected samples to VirusTotal"
+                >
+                  {bulkActionLoading ? (
+                    <>
+                      <FaSpinner className="spinner" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <FaUpload />
+                      Upload to VirusTotal
+                    </>
+                  )}
+                </button>
+                <button
+                  className="bulk-action-button clear"
+                  onClick={clearSelection}
+                  disabled={bulkActionLoading}
+                >
+                  Clear Selection
+                </button>
+              </div>
+            </div>
+          )}
+
+          {bulkActionStatus && (
+            <div className={`bulk-action-status ${bulkActionStatus.startsWith('Error') ? 'error' : 'success'}`}>
+              {bulkActionStatus}
+            </div>
+          )}
 
           {searchResults.results.length === 0 ? (
             <div className="no-results">
@@ -319,6 +423,19 @@ const Search: React.FC = () => {
               <table className="results-table">
                 <thead>
                   <tr>
+                    <th className="checkbox-cell">
+                      <button
+                        className="select-all-button"
+                        onClick={toggleSelectAll}
+                        title={selectedSamples.size === searchResults.results.length ? 'Deselect all' : 'Select all'}
+                      >
+                        {selectedSamples.size === searchResults.results.length ? (
+                          <FaCheckSquare />
+                        ) : (
+                          <FaSquare />
+                        )}
+                      </button>
+                    </th>
                     <th>Filename</th>
                     <th>SHA256</th>
                     <th>Type</th>
@@ -333,16 +450,33 @@ const Search: React.FC = () => {
                   {searchResults.results.map((result) => (
                     <tr
                       key={result.sha512}
-                      onClick={(e) => handleResultClick(result.sha512, e)}
-                      onAuxClick={(e) => {
-                        if (e.button === 1) {
-                          window.open(`/samples/${result.sha512}`, '_blank');
-                          e.preventDefault();
-                        }
-                      }}
-                      className="result-row"
+                      className={`result-row ${selectedSamples.has(result.sha512) ? 'selected' : ''}`}
                     >
-                      <td className="filename-cell">
+                      <td className="checkbox-cell">
+                        <button
+                          className="checkbox-button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleSelectSample(result.sha512);
+                          }}
+                        >
+                          {selectedSamples.has(result.sha512) ? (
+                            <FaCheckSquare />
+                          ) : (
+                            <FaSquare />
+                          )}
+                        </button>
+                      </td>
+                      <td
+                        className="filename-cell clickable"
+                        onClick={(e) => handleResultClick(result.sha512, e)}
+                        onAuxClick={(e) => {
+                          if (e.button === 1) {
+                            window.open(`/samples/${result.sha512}`, '_blank');
+                            e.preventDefault();
+                          }
+                        }}
+                      >
                         <div className="filename">{result.filename}</div>
                         {result.tags.length > 0 && (
                           <div className="tags">
@@ -354,22 +488,40 @@ const Search: React.FC = () => {
                           </div>
                         )}
                       </td>
-                      <td className="hash-cell">
+                      <td
+                        className="hash-cell clickable"
+                        onClick={(e) => handleResultClick(result.sha512, e)}
+                      >
                         <code>{result.sha256.substring(0, 16)}...</code>
                       </td>
-                      <td>
+                      <td
+                        className="clickable"
+                        onClick={(e) => handleResultClick(result.sha512, e)}
+                      >
                         <span className={`file-type-badge ${result.file_type}`}>
                           {result.file_type.toUpperCase()}
                         </span>
                       </td>
-                      <td>{formatFileSize(result.file_size)}</td>
-                      <td>{result.family || '-'}</td>
-                      <td>
+                      <td
+                        className="clickable"
+                        onClick={(e) => handleResultClick(result.sha512, e)}
+                      >{formatFileSize(result.file_size)}</td>
+                      <td
+                        className="clickable"
+                        onClick={(e) => handleResultClick(result.sha512, e)}
+                      >{result.family || '-'}</td>
+                      <td
+                        className="clickable"
+                        onClick={(e) => handleResultClick(result.sha512, e)}
+                      >
                         <span className={`status-badge ${result.analysis_status}`}>
                           {result.analysis_status || 'pending'}
                         </span>
                       </td>
-                      <td>
+                      <td
+                        className="clickable"
+                        onClick={(e) => handleResultClick(result.sha512, e)}
+                      >
                         <div className="analyzer-badges">
                           {result.has_pe_analysis && (
                             <span className="analyzer-badge pe">PE</span>

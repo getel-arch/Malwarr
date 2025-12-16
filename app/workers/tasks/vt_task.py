@@ -364,6 +364,59 @@ class VirusTotalTask(DatabaseTask):
                 'error': str(e)
             }
     
+    def run_upload(self, sha512: str) -> Dict[str, Any]:
+        """
+        Upload a sample to VirusTotal for scanning
+        
+        Args:
+            sha512: SHA512 hash of the sample to upload
+            
+        Returns:
+            Dictionary with upload results
+        """
+        logger.info(f"Starting VirusTotal upload for sample: {sha512}")
+        
+        try:
+            # Check if VT API key is configured
+            if not self.validate_api_key():
+                logger.warning("VirusTotal API key not configured, cannot upload to VT")
+                return {
+                    "success": False,
+                    "error": "VirusTotal API key not configured"
+                }
+            
+            # Use the async upload method
+            import asyncio
+            result = asyncio.run(self.upload_to_virustotal(
+                sample_id=sha512,
+                api_key=settings.virustotal_api_key
+            ))
+            
+            if not result:
+                logger.error(f"Upload to VirusTotal failed for sample: {sha512}")
+                return {
+                    "success": False,
+                    "error": "Upload to VirusTotal failed"
+                }
+            
+            # Schedule polling tasks to check for results if upload succeeded
+            if result.get('success'):
+                logger.info(f"Scheduling polling tasks for sample: {sha512}")
+                # Import the polling task here to avoid circular imports
+                poll_pending_virustotal_analyses.apply_async(countdown=120)
+                poll_pending_virustotal_analyses.apply_async(countdown=300)
+                poll_pending_virustotal_analyses.apply_async(countdown=600)
+            
+            logger.info(f"VirusTotal upload completed for sample: {sha512}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error in VirusTotal upload: {e}", exc_info=True)
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
     def check_virustotal_analysis_status(
         self,
         sample_id: str,
@@ -649,6 +702,20 @@ def analyze_sample_with_virustotal(self, sha512: str) -> Dict[str, Any]:
         Dictionary with analysis results
     """
     return self.run_virustotal_analysis(sha512)
+
+
+@celery_app.task(base=VirusTotalTask, bind=True, name='app.workers.tasks.vt_upload_task')
+def upload_sample_to_virustotal_task(self, sha512: str) -> Dict[str, Any]:
+    """
+    Upload a sample to VirusTotal for scanning
+    
+    Args:
+        sha512: SHA512 hash of the sample to upload
+        
+    Returns:
+        Dictionary with upload results
+    """
+    return self.run_upload(sha512)
 
 
 @celery_app.task(base=VirusTotalTask, bind=True, name='app.workers.tasks.vt_polling_task')
